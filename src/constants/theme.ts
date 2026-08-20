@@ -9,19 +9,46 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
+    text: '#0B0E12',
+    background: '#F5F6F8',
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    textSecondary: '#6B7280',
+    card: '#FFFFFF',
+    border: '#E7E8EC',
+    tint: '#1FAE5C',
+    tintSoft: '#E4F7EA',
+    positive: '#1B9E4B',
+    positiveSoft: '#E4F7EA',
+    negative: '#E1483C',
+    negativeSoft: '#FDEAEA',
+    iconMuted: '#9AA1AC',
   },
   dark: {
-    text: '#ffffff',
+    text: '#F5F6F8',
     background: '#000000',
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    textSecondary: '#9AA1AC',
+    card: '#17181B',
+    border: '#2A2C31',
+    tint: '#3ECB74',
+    tintSoft: 'rgba(62, 203, 116, 0.16)',
+    positive: '#3ECB74',
+    positiveSoft: 'rgba(62, 203, 116, 0.16)',
+    negative: '#F17064',
+    negativeSoft: 'rgba(241, 112, 100, 0.16)',
+    iconMuted: '#6B6F76',
   },
+} as const;
+
+export const BrandGradient = ['#B7F17C', '#4CAF50'] as const;
+
+export const Radii = {
+  small: 12,
+  medium: 18,
+  large: 24,
+  pill: 999,
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;

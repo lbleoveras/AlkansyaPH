@@ -1,56 +1,66 @@
-# Welcome to your Expo app 👋
+# AlkansyaPH
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A simple personal finance app for tracking a Philippine stock (PSE) portfolio — built with [Expo](https://expo.dev), [Expo Router](https://docs.expo.dev/router/introduction/), and React Native.
 
-## Get started
+The core loop: open the app → see total portfolio value and performance → browse PSE stocks and market news → add or adjust a holding → value updates.
 
-1. Install dependencies
+This is intentionally **not** a trading platform, brokerage, or professional trading terminal — just a fast way to answer "what do I own, what's it worth, and how is it doing."
 
-   ```bash
-   npm install
-   ```
+## Status
 
-2. Start the app
+**Phase 1: front-end/UI prototype.** Authentication and all data (stocks, prices, holdings, news, the PSEi index) are mocked/in-memory — there is no backend yet. Nothing here should be treated as real market data or a real account system. See [CLAUDE.md](CLAUDE.md) for the full phased build plan and architecture notes.
 
-   ```bash
-   npx expo start
-   ```
+## Features
 
-In the output, you'll find options to open the app in a
+- **Portfolio** — total value, all-time gain/loss, a performance graph (1W/1M/3M/1Y), and a holdings list with per-holding gain/loss
+- **Stocks** — PSEi index chart, searchable list of PSE-listed stocks, and a per-stock detail page with its own price graph and index stats (float, index weight, market cap)
+- **News** — Philippine stock market news cards that link out to the original source
+- **Settings** — profile, account info, light/dark/system appearance toggle
+- **Holdings** — add, increase, decrease, or remove a position, with a brokerage-style detail breakdown (portfolio %, market/average price, market value, gain/loss)
+- A live market-open/closed indicator based on actual PSE trading hours (Mon–Fri, 9:30 AM–3:30 PM, Asia/Manila)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Getting started
 
 ```bash
-npm run reset-project
+npm install
+npm start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+This starts the Expo dev server and prints a QR code — scan it with [Expo Go](https://expo.dev/go) on your phone (same Wi-Fi network as your computer), or press `w` for web / `a` for Android / `i` for iOS.
 
-### Other setup steps
+> This project is pinned to **Expo SDK 54**. Make sure your Expo Go app supports SDK 54 or newer.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Other commands:
 
-## Learn more
+```bash
+npm run web         # open directly in a browser
+npm run android      # open in an Android emulator/device
+npm run ios          # open in an iOS simulator/device
+npm run lint         # ESLint
+npx tsc --noEmit      # typecheck
+npx expo-doctor       # validate project/dependency health
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## Tech stack
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- [Expo](https://expo.dev) (SDK 54) + [Expo Router](https://docs.expo.dev/router/introduction/) for file-based routing
+- React Native + React Native Web (runs on iOS, Android, and web)
+- TypeScript
+- Hand-rolled SVG charts (`react-native-svg`) — no charting library
+- React Context for state (auth, portfolio, theme) — no Redux/Zustand
 
-## Join the community
+## Project structure
 
-Join our community of developers creating universal apps.
+```
+src/
+  app/            # Expo Router routes ((auth), (tabs), modals, stock detail)
+  components/      # feature components (holding-row, stock-row, news-card, ...)
+  components/ui/    # generic reusable primitives (buttons, badges, inputs, ...)
+  context/         # AuthProvider, PortfolioProvider, ThemePreferenceProvider
+  data/            # mock stocks, holdings, news, PSEi index, performance-series generator
+  hooks/           # useTheme, useRangeSeries, useMarketStatus, ...
+  constants/        # color tokens, spacing, radii
+  utils/           # currency/percent/date formatting, PSE market-hours logic
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+See [CLAUDE.md](CLAUDE.md) for a deeper architecture walkthrough and known gotchas.

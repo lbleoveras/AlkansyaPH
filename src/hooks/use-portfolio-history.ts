@@ -43,6 +43,12 @@ async function fetchHistoryForSymbols(symbols: string[], sinceIso: string): Prom
 // that timestamp is exact. Purchase date isn't gated intraday since we only
 // know the purchase *date*, not a time -- a holding bought today counts for
 // all of today's ticks.
+//
+// Plots unrealized gain/loss (price minus what you paid, times shares) --
+// not raw position value. A newly-bought holding starts this at ~0 (you
+// just paid roughly today's price for it), instead of jumping the line by
+// its full principal the moment it's purchased, which is what charting raw
+// value did.
 function computeIntradayPortfolioPoints(
   holdings: HoldingWithMarketData[],
   rows: HistoryRow[],
@@ -69,25 +75,29 @@ function computeIntradayPortfolioPoints(
       const priceAtTick = bySymbolTick.get(holding.symbol)?.get(tick);
       if (priceAtTick !== undefined) lastKnown.set(holding.symbol, priceAtTick);
       const price = lastKnown.get(holding.symbol) ?? holding.stock.price;
-      total += price * holding.quantity;
+      total += (price - holding.averagePrice) * holding.quantity;
     }
     return { date: tick, value: total };
   });
 }
 
 // There's no transaction/quantity-history ledger in this app (see CLAUDE.md's
-// "Uncommitted Shares" note), so a true historical portfolio value can't be
-// computed. This approximates it as (current holding quantities) x (historical
-// price per day) -- the standard simplification for this data shape -- forward-
-// filling each symbol's price across days it wasn't scraped, and falling back to
-// the live price for days before any history exists at all for that symbol.
+// "Uncommitted Shares" note), so a true historical gain/loss can't be
+// computed from actual past trades. This approximates it as (current holding
+// quantities) x (historical price per day, minus what you paid) -- the
+// standard simplification for this data shape -- forward-filling each
+// symbol's price across days it wasn't scraped, and falling back to the live
+// price for days before any history exists at all for that symbol.
+//
+// Plots unrealized gain/loss, not raw position value -- a holding contributes
+// (price - averagePrice) x quantity, which starts near zero the day it's
+// bought (you paid roughly that day's price for it) rather than jumping the
+// line by its full principal the moment it's added.
 //
 // The visible range is clamped so it never starts before the earliest
 // purchase date across current holdings (a 1Y view for a position bought
 // last month should show one month, not a fabricated year), and each
-// holding only contributes to the total from its own purchase date onward
-// -- so buying a second position partway through the visible window shows
-// up as a real step up in the line, not a flat backward projection.
+// holding only contributes from its own purchase date onward.
 function computePortfolioPoints(
   holdings: HoldingWithMarketData[],
   rows: HistoryRow[],
@@ -137,7 +147,7 @@ function computePortfolioPoints(
       const priceToday = bySymbolDay.get(holding.symbol)?.get(day);
       if (priceToday !== undefined) lastKnown.set(holding.symbol, priceToday);
       const price = lastKnown.get(holding.symbol) ?? holding.stock.price;
-      total += price * holding.quantity;
+      total += (price - holding.averagePrice) * holding.quantity;
     }
     return { date: `${day}T00:00:00.000Z`, value: total };
   });
@@ -171,18 +181,17 @@ export function usePortfolioHistory(
     return computePortfolioPoints(holdings, query.data ?? [], range);
   }, [holdings, query.data, range]);
 
-  const currentTotal = useMemo(
-    () => holdings.reduce((sum, holding) => sum + holding.currentValue, 0),
-    [holdings],
-  );
-
+  // The headline number is your current total unrealized gain/loss, not how
+  // much the chart line moved over the selected range -- that stays the same
+  // number no matter which range tab is selected (all of them end "today"),
+  // matching what every trading app means by "gain/loss" as a snapshot
+  // rather than a range-over-range delta.
   const { changeAmount, changePercent, isPositive } = useMemo(() => {
-    const first = points[0]?.value ?? currentTotal;
-    const last = points[points.length - 1]?.value ?? currentTotal;
-    const amount = last - first;
-    const percent = first > 0 ? (amount / first) * 100 : 0;
-    return { changeAmount: amount, changePercent: percent, isPositive: amount >= 0 };
-  }, [points, currentTotal]);
+    const totalGain = holdings.reduce((sum, holding) => sum + holding.gainAmount, 0);
+    const totalCostBasis = holdings.reduce((sum, holding) => sum + holding.costBasis, 0);
+    const percent = totalCostBasis > 0 ? (totalGain / totalCostBasis) * 100 : 0;
+    return { changeAmount: totalGain, changePercent: percent, isPositive: totalGain >= 0 };
+  }, [holdings]);
 
   return { range, setRange, points, changeAmount, changePercent, isPositive, isLoading: query.isLoading };
 }

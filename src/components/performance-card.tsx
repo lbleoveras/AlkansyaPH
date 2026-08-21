@@ -17,7 +17,7 @@ const RANGES: PerformanceRange[] = ['1D', '1W', '1M', '3M', '1Y'];
 
 export function PerformanceCard({ holdings }: { holdings: HoldingWithMarketData[] }) {
   const theme = useTheme();
-  const { formatCurrency, formatSignedCurrency } = useMoneyFormat();
+  const { formatSignedCurrency } = useMoneyFormat();
   const { range, setRange, points, changeAmount, changePercent, isPositive } =
     usePortfolioHistory(holdings);
 
@@ -54,7 +54,7 @@ export function PerformanceCard({ holdings }: { holdings: HoldingWithMarketData[
       <PerformanceGraph
         points={points}
         color={color}
-        formatValue={formatCurrency}
+        formatValue={formatSignedCurrency}
         formatPointLabel={(point) => formatChartPointLabel(point.date, range)}
         labelColor={theme.text}
         tooltipBackground={theme.card}

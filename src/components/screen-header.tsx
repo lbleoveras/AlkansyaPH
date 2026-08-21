@@ -1,56 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AvatarBadge } from '@/components/ui/avatar-badge';
 import { Radii, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
-import { usePortfolio } from '@/context/portfolio-context';
+import { useNotifications } from '@/context/notifications-context';
 import { useTheme } from '@/hooks/use-theme';
-import { getSeenNotificationsSignature, markNotificationsSeen } from '@/lib/notification-memory';
-import { formatSignedPercent } from '@/utils/format';
 
 export function ScreenHeader({ title }: { title: string }) {
   const theme = useTheme();
   const router = useRouter();
   const { user } = useAuth();
-  const { holdingsWithMarketData } = usePortfolio();
+  const { notifications, hasUnseen, markSeen } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
-  const [seenSignature, setSeenSignature] = useState<string | null>(null);
-
-  const notifications = useMemo(
-    () =>
-      [...holdingsWithMarketData]
-        .sort((a, b) => Math.abs(b.stock.changePercent) - Math.abs(a.stock.changePercent))
-        .map((holding) => ({
-          id: holding.id,
-          text: `${holding.symbol} is ${holding.stock.changePercent >= 0 ? 'up' : 'down'} ${formatSignedPercent(
-            holding.stock.changePercent,
-          ).replace('+', '')} today`,
-          positive: holding.stock.changePercent >= 0,
-        })),
-    [holdingsWithMarketData],
-  );
-
-  // Identifies *this exact set* of notifications so the badge reappears if
-  // tomorrow's moves are different, but stays cleared for ones already seen.
-  const signature = useMemo(
-    () => notifications.map((note) => `${note.id}:${note.text}`).join('|'),
-    [notifications],
-  );
-
-  useEffect(() => {
-    if (!user) return;
-    getSeenNotificationsSignature(user.id).then(setSeenSignature);
-  }, [user]);
-
-  const hasUnseen = notifications.length > 0 && signature !== seenSignature;
 
   const handleOpenNotifications = () => {
     setShowNotifications(true);
-    setSeenSignature(signature);
-    if (user) void markNotificationsSeen(user.id, signature);
+    markSeen();
   };
 
   return (

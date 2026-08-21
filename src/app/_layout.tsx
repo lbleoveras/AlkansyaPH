@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 
 import { AuthProvider, useAuth } from '@/context/auth-context';
 import { CurrencyProvider } from '@/context/currency-context';
+import { NotificationsProvider } from '@/context/notifications-context';
 import { OnboardingProvider, useOnboarding } from '@/context/onboarding-context';
 import { PortfolioProvider } from '@/context/portfolio-context';
 import { ThemePreferenceProvider } from '@/context/theme-preference-context';
@@ -78,7 +79,9 @@ export default function RootLayout() {
           <AuthProvider>
             <OnboardingProvider>
               <PortfolioProvider>
-                <RootNavigator />
+                <NotificationsProvider>
+                  <RootNavigator />
+                </NotificationsProvider>
               </PortfolioProvider>
             </OnboardingProvider>
           </AuthProvider>

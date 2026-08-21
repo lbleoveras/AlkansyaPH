@@ -28,6 +28,7 @@ export default function AddHoldingScreen() {
   const [query, setQuery] = useState('');
   const [quantity, setQuantity] = useState('');
   const [averagePrice, setAveragePrice] = useState('');
+  const [purchasedAt, setPurchasedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [error, setError] = useState('');
 
   const selectedStock = selectedSymbol ? getStockBySymbol(selectedSymbol) : undefined;
@@ -55,8 +56,14 @@ export default function AddHoldingScreen() {
       setError('Enter a valid average price.');
       return;
     }
+    const purchasedDate = new Date(purchasedAt);
+    const today = new Date().toISOString().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(purchasedAt) || Number.isNaN(purchasedDate.getTime()) || purchasedAt > today) {
+      setError('Enter a valid purchase date (YYYY-MM-DD), not in the future.');
+      return;
+    }
     setError('');
-    addHolding(selectedStock.symbol, Math.round(parsedQuantity), parsedAveragePrice).catch(() => {});
+    addHolding(selectedStock.symbol, Math.round(parsedQuantity), parsedAveragePrice, purchasedAt).catch(() => {});
     router.back();
   };
 
@@ -133,6 +140,12 @@ export default function AddHoldingScreen() {
                 onChangeText={setAveragePrice}
                 placeholder={selectedStock.price.toFixed(2)}
                 keyboardType="numeric"
+              />
+              <TextField
+                label="Date purchased"
+                value={purchasedAt}
+                onChangeText={setPurchasedAt}
+                placeholder="YYYY-MM-DD"
                 error={error || undefined}
               />
 

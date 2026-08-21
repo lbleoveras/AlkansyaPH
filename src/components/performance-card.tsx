@@ -7,15 +7,17 @@ import { MarketStatusBadge } from '@/components/ui/market-status-badge';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Radii, Spacing } from '@/constants/theme';
 import { HoldingWithMarketData } from '@/context/portfolio-context';
+import { useMoneyFormat } from '@/hooks/use-money-format';
 import { usePortfolioHistory } from '@/hooks/use-portfolio-history';
 import { useTheme } from '@/hooks/use-theme';
 import { PerformanceRange } from '@/types';
-import { formatSignedCurrency, formatSignedPercent } from '@/utils/format';
+import { formatSignedPercent } from '@/utils/format';
 
 const RANGES: PerformanceRange[] = ['1W', '1M', '3M', '1Y'];
 
 export function PerformanceCard({ holdings }: { holdings: HoldingWithMarketData[] }) {
   const theme = useTheme();
+  const { formatSignedCurrency } = useMoneyFormat();
   const { range, setRange, points, changeAmount, changePercent, isPositive } =
     usePortfolioHistory(holdings);
 

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenHeader } from '@/components/screen-header';
 import { AvatarBadge } from '@/components/ui/avatar-badge';
@@ -10,10 +11,13 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Radii, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
+import { CurrencyCode, useCurrencyPreference } from '@/context/currency-context';
 import { ThemePreference, useThemePreference } from '@/context/theme-preference-context';
 import { useTheme } from '@/hooks/use-theme';
+import { formatDate } from '@/utils/format';
 
 const APPEARANCE_OPTIONS: ThemePreference[] = ['system', 'light', 'dark'];
+const CURRENCY_OPTIONS: CurrencyCode[] = ['PHP', 'USD', 'EUR', 'JPY', 'SGD'];
 
 function InfoRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
   const theme = useTheme();
@@ -32,13 +36,12 @@ function InfoRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap;
 
 export default function SettingsScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const { user, logout } = useAuth();
   const { preference, setPreference } = useThemePreference();
+  const { currency, setCurrency } = useCurrencyPreference();
 
-  const memberSince = new Date('2026-02-14').toLocaleDateString('en-PH', {
-    month: 'long',
-    year: 'numeric',
-  });
+  const memberSince = user?.createdAt ? formatDate(user.createdAt) : '—';
 
   return (
     <ScreenContainer>
@@ -59,7 +62,15 @@ export default function SettingsScreen() {
           <View style={[styles.divider, { backgroundColor: theme.border }]} />
           <InfoRow icon="calendar-outline" label="Member since" value={memberSince} />
           <View style={[styles.divider, { backgroundColor: theme.border }]} />
-          <InfoRow icon="cash-outline" label="Currency" value="PHP (₱)" />
+          <Pressable
+            onPress={() => router.push('/change-password')}
+            style={({ pressed }) => [styles.linkRow, pressed && { opacity: 0.6 }]}>
+            <View style={[styles.infoIcon, { backgroundColor: theme.backgroundElement }]}>
+              <Ionicons name="lock-closed-outline" size={16} color={theme.textSecondary} />
+            </View>
+            <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Change Password</Text>
+            <Ionicons name="chevron-forward" size={16} color={theme.iconMuted} />
+          </Pressable>
         </View>
       </View>
 
@@ -68,6 +79,10 @@ export default function SettingsScreen() {
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Text style={[styles.preferenceLabel, { color: theme.textSecondary }]}>Appearance</Text>
           <SegmentedControl options={APPEARANCE_OPTIONS} value={preference} onChange={setPreference} />
+          <Text style={[styles.preferenceLabel, { color: theme.textSecondary }, styles.preferenceSpacing]}>
+            Currency (display only -- holdings are always tracked in PHP)
+          </Text>
+          <SegmentedControl options={CURRENCY_OPTIONS} value={currency} onChange={setCurrency} />
         </View>
       </View>
 
@@ -116,6 +131,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
     paddingVertical: Spacing.two - 2,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.two - 2,
+  },
+  preferenceSpacing: {
+    marginTop: Spacing.three,
   },
   infoIcon: {
     width: 30,

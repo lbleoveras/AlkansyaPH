@@ -5,8 +5,9 @@ import { ChangePill } from '@/components/ui/change-pill';
 import { AvatarBadge } from '@/components/ui/avatar-badge';
 import { Spacing } from '@/constants/theme';
 import { HoldingWithMarketData } from '@/context/portfolio-context';
+import { useMoneyFormat } from '@/hooks/use-money-format';
 import { useTheme } from '@/hooks/use-theme';
-import { formatCurrency, formatShares } from '@/utils/format';
+import { formatShares } from '@/utils/format';
 
 type HoldingRowProps = {
   holding: HoldingWithMarketData;
@@ -15,6 +16,7 @@ type HoldingRowProps = {
 
 export function HoldingRow({ holding, onPress }: HoldingRowProps) {
   const theme = useTheme();
+  const { formatCurrency } = useMoneyFormat();
 
   return (
     <Pressable

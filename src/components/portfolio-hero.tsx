@@ -2,8 +2,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { ChangePill } from '@/components/ui/change-pill';
 import { Spacing } from '@/constants/theme';
+import { useMoneyFormat } from '@/hooks/use-money-format';
 import { useTheme } from '@/hooks/use-theme';
-import { formatCurrency, formatSignedCurrency } from '@/utils/format';
 
 type PortfolioHeroProps = {
   totalValue: number;
@@ -13,6 +13,7 @@ type PortfolioHeroProps = {
 
 export function PortfolioHero({ totalValue, gainAmount, gainPercent }: PortfolioHeroProps) {
   const theme = useTheme();
+  const { formatCurrency, formatSignedCurrency } = useMoneyFormat();
   const isPositive = gainAmount >= 0;
   const color = isPositive ? theme.positive : theme.negative;
 

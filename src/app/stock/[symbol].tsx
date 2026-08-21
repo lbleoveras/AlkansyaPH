@@ -12,17 +12,15 @@ import { ScreenContainer } from '@/components/ui/screen-container';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Radii, Spacing } from '@/constants/theme';
 import { usePortfolio } from '@/context/portfolio-context';
+import { useMoneyFormat } from '@/hooks/use-money-format';
 import { useStockHistory } from '@/hooks/use-stock-history';
 import { useStocks } from '@/hooks/use-stocks';
 import { useTheme } from '@/hooks/use-theme';
 import { PerformanceRange } from '@/types';
 import {
-  formatCurrency,
   formatFloat,
-  formatMarketCap,
   formatPercent,
   formatShares,
-  formatSignedCurrency,
   formatSignedPercent,
   formatSignedPoints,
 } from '@/utils/format';
@@ -35,6 +33,7 @@ export default function StockDetailScreen() {
   const { symbol } = useLocalSearchParams<{ symbol: string }>();
   const { getHoldingBySymbol, holdingsWithMarketData } = usePortfolio();
   const { getStockBySymbol, isLoading } = useStocks();
+  const { formatCurrency, formatMarketCap, formatSignedCurrency } = useMoneyFormat();
 
   const stock = getStockBySymbol(symbol?.toUpperCase() ?? '');
   const holding = stock ? getHoldingBySymbol(stock.symbol) : undefined;

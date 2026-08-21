@@ -10,17 +10,25 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Radii, Spacing } from '@/constants/theme';
+import { useAuth } from '@/context/auth-context';
 import { usePortfolio } from '@/context/portfolio-context';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function PortfolioScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { user } = useAuth();
   const { holdingsWithMarketData, totalValue, totalGainAmount, totalGainPercent } = usePortfolio();
+
+  const firstName = user?.name?.trim().split(/\s+/)[0];
 
   return (
     <ScreenContainer>
       <ScreenHeader title="Portfolio" />
+
+      {firstName && (
+        <Text style={[styles.greeting, { color: theme.textSecondary }]}>Welcome back, {firstName}</Text>
+      )}
 
       <PortfolioHero
         totalValue={totalValue}
@@ -74,6 +82,11 @@ export default function PortfolioScreen() {
 }
 
 const styles = StyleSheet.create({
+  greeting: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: Spacing.one,
+  },
   section: {
     marginTop: Spacing.four,
   },

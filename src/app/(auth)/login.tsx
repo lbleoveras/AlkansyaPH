@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,13 +9,24 @@ import { TextField } from '@/components/ui/text-field';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { useTheme } from '@/hooks/use-theme';
+import { getRememberedEmail, rememberEmail } from '@/lib/auth-memory';
 
 export default function LoginScreen() {
   const theme = useTheme();
   const { login, isSubmitting } = useAuth();
-  const [email, setEmail] = useState('juan.delacruz@email.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isReturningDevice, setIsReturningDevice] = useState(false);
+
+  useEffect(() => {
+    getRememberedEmail().then((stored) => {
+      if (stored) {
+        setEmail(stored);
+        setIsReturningDevice(true);
+      }
+    });
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -24,7 +35,9 @@ export default function LoginScreen() {
     }
     setError('');
     try {
-      await login(email.trim(), password);
+      const trimmedEmail = email.trim();
+      await login(trimmedEmail, password);
+      await rememberEmail(trimmedEmail);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     }
@@ -37,7 +50,10 @@ export default function LoginScreen() {
       <SafeAreaView style={styles.flex}>
         <View style={styles.centerRow}>
           <View style={styles.content}>
-            <AuthMark title="Welcome back" subtitle="Log in to check your portfolio" />
+            <AuthMark
+              title={isReturningDevice ? 'Welcome back' : 'Welcome'}
+              subtitle="Log in to check your portfolio"
+            />
 
             <View style={styles.form}>
               <TextField

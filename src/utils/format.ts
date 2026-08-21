@@ -43,6 +43,14 @@ export function formatNumber(value: number): string {
   return value.toLocaleString('en-PH');
 }
 
+export function formatDate(isoDate: string): string {
+  return new Date(isoDate).toLocaleDateString('en-PH', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 export function formatRelativeDate(iso: string): string {
   const date = new Date(iso);
   const now = new Date();

@@ -17,6 +17,7 @@ export type Holding = {
   symbol: string;
   quantity: number;
   averagePrice: number;
+  purchasedAt: string;
   createdAt: string;
 };
 
@@ -42,4 +43,5 @@ export type User = {
   id: string;
   name: string;
   email: string;
+  createdAt: string;
 };

@@ -24,7 +24,7 @@ type PortfolioContextValue = {
   isLoading: boolean;
   isError: boolean;
   getHoldingBySymbol: (symbol: string) => Holding | undefined;
-  addHolding: (symbol: string, quantity: number, averagePrice: number) => Promise<void>;
+  addHolding: (symbol: string, quantity: number, averagePrice: number, purchasedAt: string) => Promise<void>;
   increaseHolding: (id: string, amount: number) => Promise<void>;
   decreaseHolding: (id: string, amount: number) => Promise<void>;
   removeHolding: (id: string) => Promise<void>;
@@ -37,6 +37,7 @@ type HoldingRow = {
   symbol: string;
   quantity: number | string;
   average_price: number | string;
+  purchased_at: string;
   created_at: string;
 };
 
@@ -46,6 +47,7 @@ function mapRowToHolding(row: HoldingRow): Holding {
     symbol: row.symbol,
     quantity: Number(row.quantity),
     averagePrice: Number(row.average_price),
+    purchasedAt: row.purchased_at,
     createdAt: row.created_at,
   };
 }
@@ -53,7 +55,7 @@ function mapRowToHolding(row: HoldingRow): Holding {
 async function fetchHoldings(userId: string): Promise<Holding[]> {
   const { data, error } = await supabase
     .from('holdings')
-    .select('id, symbol, quantity, average_price, created_at')
+    .select('id, symbol, quantity, average_price, purchased_at, created_at')
     .eq('user_id', userId);
   if (error) throw error;
   return (data ?? []).map(mapRowToHolding);
@@ -140,7 +142,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   // symbol, find onMutate's optimistic placeholder row and try to UPDATE
   // its client-side `optimistic-...` id, which isn't a real uuid).
   type AddHoldingArgs =
-    | { kind: 'insert'; symbol: string; quantity: number; averagePrice: number }
+    | { kind: 'insert'; symbol: string; quantity: number; averagePrice: number; purchasedAt: string }
     | { kind: 'update'; id: string; quantity: number; averagePrice: number };
 
   const addHoldingMutation = useMutation({
@@ -159,6 +161,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         symbol: args.symbol,
         quantity: args.quantity,
         average_price: args.averagePrice,
+        purchased_at: args.purchasedAt,
       });
       if (error) throw error;
     },
@@ -179,6 +182,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
             symbol: args.symbol,
             quantity: args.quantity,
             averagePrice: args.averagePrice,
+            purchasedAt: args.purchasedAt,
             createdAt: new Date().toISOString(),
           },
         ];
@@ -243,7 +247,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   });
 
   const addHolding = useCallback(
-    (symbol: string, quantity: number, averagePrice: number) => {
+    (symbol: string, quantity: number, averagePrice: number, purchasedAt: string) => {
       const existing = holdings.find((holding) => holding.symbol === symbol);
       if (existing) {
         const combinedQuantity = existing.quantity + quantity;
@@ -261,6 +265,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         symbol,
         quantity,
         averagePrice: averagePrice || stock?.price || 0,
+        purchasedAt,
       });
     },
     [holdings, getStockBySymbol, addHoldingMutation],

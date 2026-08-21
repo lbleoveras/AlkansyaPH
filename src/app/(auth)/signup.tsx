@@ -9,6 +9,7 @@ import { TextField } from '@/components/ui/text-field';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { useTheme } from '@/hooks/use-theme';
+import { rememberEmail } from '@/lib/auth-memory';
 
 export default function SignupScreen() {
   const theme = useTheme();
@@ -29,7 +30,9 @@ export default function SignupScreen() {
     }
     setError('');
     try {
-      await signup(name.trim(), email.trim(), password);
+      const trimmedEmail = email.trim();
+      await signup(name.trim(), trimmedEmail, password);
+      await rememberEmail(trimmedEmail);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     }

@@ -1,24 +1,35 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AvatarBadge } from '@/components/ui/avatar-badge';
 import { Radii, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
+import { usePortfolio } from '@/context/portfolio-context';
 import { useTheme } from '@/hooks/use-theme';
-
-const NOTIFICATIONS = [
-  { id: 'note1', text: 'BDO is up 1.26% today', time: '2h ago' },
-  { id: 'note2', text: 'PSE market closes in 30 minutes', time: '4h ago' },
-  { id: 'note3', text: 'Your portfolio is up ₱1,240 this week', time: '1d ago' },
-];
+import { formatSignedPercent } from '@/utils/format';
 
 export function ScreenHeader({ title }: { title: string }) {
   const theme = useTheme();
   const router = useRouter();
   const { user } = useAuth();
+  const { holdingsWithMarketData } = usePortfolio();
   const [showNotifications, setShowNotifications] = useState(false);
+
+  const notifications = useMemo(
+    () =>
+      [...holdingsWithMarketData]
+        .sort((a, b) => Math.abs(b.stock.changePercent) - Math.abs(a.stock.changePercent))
+        .map((holding) => ({
+          id: holding.id,
+          text: `${holding.symbol} is ${holding.stock.changePercent >= 0 ? 'up' : 'down'} ${formatSignedPercent(
+            holding.stock.changePercent,
+          ).replace('+', '')} today`,
+          positive: holding.stock.changePercent >= 0,
+        })),
+    [holdingsWithMarketData],
+  );
 
   return (
     <View style={styles.row}>
@@ -37,7 +48,9 @@ export function ScreenHeader({ title }: { title: string }) {
         accessibilityLabel="Notifications"
         style={[styles.bellButton, { backgroundColor: theme.backgroundElement }]}>
         <Ionicons name="notifications-outline" size={20} color={theme.text} />
-        <View style={[styles.dot, { backgroundColor: theme.negative, borderColor: theme.card }]} />
+        {notifications.length > 0 && (
+          <View style={[styles.dot, { backgroundColor: theme.negative, borderColor: theme.card }]} />
+        )}
       </Pressable>
 
       <Modal
@@ -48,15 +61,23 @@ export function ScreenHeader({ title }: { title: string }) {
         <Pressable style={styles.backdrop} onPress={() => setShowNotifications(false)}>
           <View style={[styles.panel, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.panelTitle, { color: theme.text }]}>Notifications</Text>
-            {NOTIFICATIONS.map((note) => (
-              <View key={note.id} style={[styles.noteRow, { borderTopColor: theme.border }]}>
-                <View style={[styles.noteDot, { backgroundColor: theme.tint }]} />
-                <View style={styles.noteBody}>
+            {notifications.length === 0 ? (
+              <Text style={[styles.noteEmpty, { color: theme.textSecondary }]}>
+                Add a holding to see its daily moves here.
+              </Text>
+            ) : (
+              notifications.map((note) => (
+                <View key={note.id} style={[styles.noteRow, { borderTopColor: theme.border }]}>
+                  <View
+                    style={[
+                      styles.noteDot,
+                      { backgroundColor: note.positive ? theme.positive : theme.negative },
+                    ]}
+                  />
                   <Text style={[styles.noteText, { color: theme.text }]}>{note.text}</Text>
-                  <Text style={[styles.noteTime, { color: theme.textSecondary }]}>{note.time}</Text>
                 </View>
-              </View>
-            ))}
+              ))
+            )}
           </View>
         </Pressable>
       </Modal>
@@ -124,15 +145,13 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     marginTop: 6,
   },
-  noteBody: {
-    flex: 1,
-    gap: 2,
-  },
   noteText: {
+    flex: 1,
     fontSize: 13,
     fontWeight: '600',
   },
-  noteTime: {
-    fontSize: 11,
+  noteEmpty: {
+    fontSize: 13,
+    paddingVertical: Spacing.two,
   },
 });

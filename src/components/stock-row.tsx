@@ -3,9 +3,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AvatarBadge } from '@/components/ui/avatar-badge';
 import { ChangePill } from '@/components/ui/change-pill';
 import { Spacing } from '@/constants/theme';
+import { useMoneyFormat } from '@/hooks/use-money-format';
 import { useTheme } from '@/hooks/use-theme';
 import { Stock } from '@/types';
-import { formatCurrency } from '@/utils/format';
 
 type StockRowProps = {
   stock: Stock;
@@ -14,6 +14,7 @@ type StockRowProps = {
 
 export function StockRow({ stock, onPress }: StockRowProps) {
   const theme = useTheme();
+  const { formatCurrency } = useMoneyFormat();
 
   return (
     <Pressable

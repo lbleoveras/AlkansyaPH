@@ -11,15 +11,9 @@ import { ScreenContainer } from '@/components/ui/screen-container';
 import { TextField } from '@/components/ui/text-field';
 import { Radii, Spacing } from '@/constants/theme';
 import { usePortfolio } from '@/context/portfolio-context';
+import { useMoneyFormat } from '@/hooks/use-money-format';
 import { useTheme } from '@/hooks/use-theme';
-import {
-  formatCurrency,
-  formatNumber,
-  formatPercent,
-  formatShares,
-  formatSignedCurrency,
-  formatSignedPercent,
-} from '@/utils/format';
+import { formatDate, formatNumber, formatPercent, formatShares, formatSignedPercent } from '@/utils/format';
 
 const QUICK_ADJUSTMENTS = [-50, -10, 10, 50];
 
@@ -29,6 +23,7 @@ export default function EditHoldingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { holdingsWithMarketData, totalValue, increaseHolding, decreaseHolding, removeHolding, isLoading } =
     usePortfolio();
+  const { formatCurrency, formatSignedCurrency } = useMoneyFormat();
 
   const holding = holdingsWithMarketData.find((item) => item.id === id);
   const [quantityInput, setQuantityInput] = useState(String(holding?.quantity ?? 0));
@@ -130,6 +125,7 @@ export default function EditHoldingScreen() {
           },
           { label: 'Market Price', value: formatCurrency(holding.stock.price) },
           { label: 'Average Price', value: formatCurrency(holding.averagePrice) },
+          { label: 'Date Purchased', value: formatDate(holding.purchasedAt) },
           { label: 'Total Shares', value: formatNumber(holding.quantity) },
           { label: 'Uncommitted Shares', value: formatNumber(holding.quantity) },
           { label: 'Market Value', value: formatCurrency(holding.currentValue) },

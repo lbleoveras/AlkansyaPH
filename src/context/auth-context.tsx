@@ -2,6 +2,7 @@ import { Session } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, ReactNode, use, useEffect, useMemo, useState } from 'react';
 
+import { unregisterPushNotifications } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import { User } from '@/types';
 
@@ -13,15 +14,16 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function userFromSession(session: Session | null): User | null {
   if (!session?.user) return null;
-  const { id, email, user_metadata: metadata } = session.user;
+  const { id, email, created_at: createdAt, user_metadata: metadata } = session.user;
   const name = (metadata?.name as string | undefined) || email?.split('@')[0] || 'Investor';
-  return { id, email: email ?? '', name };
+  return { id, email: email ?? '', name, createdAt };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -79,7 +81,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       async logout() {
+        if (user) {
+          await unregisterPushNotifications(user.id);
+        }
         await supabase.auth.signOut();
+      },
+      async changePassword(currentPassword: string, newPassword: string) {
+        setIsSubmitting(true);
+        try {
+          if (!user?.email) throw new Error('Not signed in');
+          const { error: verifyError } = await supabase.auth.signInWithPassword({
+            email: user.email,
+            password: currentPassword,
+          });
+          if (verifyError) throw new Error('Current password is incorrect.');
+          const { error } = await supabase.auth.updateUser({ password: newPassword });
+          if (error) throw error;
+        } finally {
+          setIsSubmitting(false);
+        }
       },
     }),
     [user, isInitializing, isSubmitting],

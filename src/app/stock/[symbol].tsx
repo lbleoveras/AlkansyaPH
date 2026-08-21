@@ -12,8 +12,8 @@ import { ScreenContainer } from '@/components/ui/screen-container';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Radii, Spacing } from '@/constants/theme';
 import { usePortfolio } from '@/context/portfolio-context';
-import { getStockBySymbol } from '@/data/stocks';
-import { useRangeSeries } from '@/hooks/use-range-series';
+import { useStockHistory } from '@/hooks/use-stock-history';
+import { useStocks } from '@/hooks/use-stocks';
 import { useTheme } from '@/hooks/use-theme';
 import { PerformanceRange } from '@/types';
 import {
@@ -34,6 +34,7 @@ export default function StockDetailScreen() {
   const router = useRouter();
   const { symbol } = useLocalSearchParams<{ symbol: string }>();
   const { getHoldingBySymbol, holdingsWithMarketData } = usePortfolio();
+  const { getStockBySymbol, isLoading } = useStocks();
 
   const stock = getStockBySymbol(symbol?.toUpperCase() ?? '');
   const holding = stock ? getHoldingBySymbol(stock.symbol) : undefined;
@@ -41,7 +42,8 @@ export default function StockDetailScreen() {
     ? holdingsWithMarketData.find((item) => item.id === holding.id)
     : undefined;
 
-  const { range, setRange, points, changeAmount, changePercent, isPositive } = useRangeSeries(
+  const { range, setRange, points, changeAmount, changePercent, isPositive } = useStockHistory(
+    stock?.symbol,
     stock?.price ?? 0,
   );
 
@@ -56,7 +58,9 @@ export default function StockDetailScreen() {
             style={[styles.backButton, { backgroundColor: theme.backgroundElement }]}>
             <Ionicons name="chevron-back" size={20} color={theme.text} />
           </Pressable>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Stock not found</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>
+            {isLoading ? 'Loading…' : 'Stock not found'}
+          </Text>
           <View style={styles.backButton} />
         </View>
       </ScreenContainer>

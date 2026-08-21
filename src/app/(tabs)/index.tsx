@@ -29,7 +29,7 @@ export default function PortfolioScreen() {
       />
 
       <View style={styles.section}>
-        <PerformanceCard totalValue={totalValue} />
+        <PerformanceCard holdings={holdingsWithMarketData} />
       </View>
 
       <View style={styles.section}>

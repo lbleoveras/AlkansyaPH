@@ -72,7 +72,7 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.section}>
-        <PrimaryButton label="Log Out" variant="danger" onPress={logout} />
+        <PrimaryButton label="Log Out" variant="danger" onPress={() => { void logout(); }} />
       </View>
 
       <Text style={[styles.version, { color: theme.textSecondary }]}>

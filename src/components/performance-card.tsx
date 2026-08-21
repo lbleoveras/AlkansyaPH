@@ -6,17 +6,18 @@ import { PerformanceGraph } from '@/components/performance-graph';
 import { MarketStatusBadge } from '@/components/ui/market-status-badge';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Radii, Spacing } from '@/constants/theme';
-import { useRangeSeries } from '@/hooks/use-range-series';
+import { HoldingWithMarketData } from '@/context/portfolio-context';
+import { usePortfolioHistory } from '@/hooks/use-portfolio-history';
 import { useTheme } from '@/hooks/use-theme';
 import { PerformanceRange } from '@/types';
 import { formatSignedCurrency, formatSignedPercent } from '@/utils/format';
 
 const RANGES: PerformanceRange[] = ['1W', '1M', '3M', '1Y'];
 
-export function PerformanceCard({ totalValue }: { totalValue: number }) {
+export function PerformanceCard({ holdings }: { holdings: HoldingWithMarketData[] }) {
   const theme = useTheme();
   const { range, setRange, points, changeAmount, changePercent, isPositive } =
-    useRangeSeries(totalValue);
+    usePortfolioHistory(holdings);
 
   const color = isPositive ? theme.positive : theme.negative;
 

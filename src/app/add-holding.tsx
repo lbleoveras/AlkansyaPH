@@ -11,7 +11,7 @@ import { SearchBar } from '@/components/ui/search-bar';
 import { TextField } from '@/components/ui/text-field';
 import { Radii, Spacing } from '@/constants/theme';
 import { usePortfolio } from '@/context/portfolio-context';
-import { getStockBySymbol, stocks } from '@/data/stocks';
+import { useStocks } from '@/hooks/use-stocks';
 import { useTheme } from '@/hooks/use-theme';
 import { formatCurrency } from '@/utils/format';
 
@@ -20,6 +20,7 @@ export default function AddHoldingScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ symbol?: string }>();
   const { addHolding } = usePortfolio();
+  const { stocks, getStockBySymbol } = useStocks();
 
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(
     params.symbol ? params.symbol.toUpperCase() : null,
@@ -38,7 +39,7 @@ export default function AddHoldingScreen() {
       (stock) =>
         stock.symbol.includes(normalized) || stock.companyName.toUpperCase().includes(normalized),
     );
-  }, [query]);
+  }, [query, stocks]);
 
   const parsedQuantity = Number(quantity);
   const parsedAveragePrice = averagePrice.trim() ? Number(averagePrice) : selectedStock?.price ?? 0;
@@ -55,7 +56,7 @@ export default function AddHoldingScreen() {
       return;
     }
     setError('');
-    addHolding(selectedStock.symbol, Math.round(parsedQuantity), parsedAveragePrice);
+    addHolding(selectedStock.symbol, Math.round(parsedQuantity), parsedAveragePrice).catch(() => {});
     router.back();
   };
 

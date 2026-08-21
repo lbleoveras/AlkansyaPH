@@ -27,7 +27,7 @@ export default function EditHoldingScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { holdingsWithMarketData, totalValue, increaseHolding, decreaseHolding, removeHolding } =
+  const { holdingsWithMarketData, totalValue, increaseHolding, decreaseHolding, removeHolding, isLoading } =
     usePortfolio();
 
   const holding = holdingsWithMarketData.find((item) => item.id === id);
@@ -38,7 +38,9 @@ export default function EditHoldingScreen() {
     return (
       <ScreenContainer>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: theme.text }]}>Holding not found</Text>
+          <Text style={[styles.title, { color: theme.text }]}>
+            {isLoading ? 'Loading…' : 'Holding not found'}
+          </Text>
           <Pressable
             onPress={() => router.back()}
             hitSlop={8}
@@ -47,9 +49,11 @@ export default function EditHoldingScreen() {
             <Ionicons name="close" size={18} color={theme.text} />
           </Pressable>
         </View>
-        <Text style={{ color: theme.textSecondary }}>
-          This holding may have already been removed.
-        </Text>
+        {!isLoading && (
+          <Text style={{ color: theme.textSecondary }}>
+            This holding may have already been removed.
+          </Text>
+        )}
       </ScreenContainer>
     );
   }
@@ -74,17 +78,17 @@ export default function EditHoldingScreen() {
     const delta = rounded - holding.quantity;
 
     if (rounded <= 0) {
-      removeHolding(holding.id);
+      removeHolding(holding.id).catch(() => {});
     } else if (delta > 0) {
-      increaseHolding(holding.id, delta);
+      increaseHolding(holding.id, delta).catch(() => {});
     } else if (delta < 0) {
-      decreaseHolding(holding.id, Math.abs(delta));
+      decreaseHolding(holding.id, Math.abs(delta)).catch(() => {});
     }
     router.back();
   };
 
   const handleRemove = () => {
-    removeHolding(holding.id);
+    removeHolding(holding.id).catch(() => {});
     router.back();
   };
 

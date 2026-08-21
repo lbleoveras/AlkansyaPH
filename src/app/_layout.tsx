@@ -1,3 +1,4 @@
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -5,15 +6,23 @@ import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/auth-context';
 import { PortfolioProvider } from '@/context/portfolio-context';
 import { ThemePreferenceProvider } from '@/context/theme-preference-context';
+import { queryClient } from '@/lib/query-client';
+import { asyncStoragePersister } from '@/lib/query-persister';
 
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isInitializing } = useAuth();
 
   useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+    if (!isInitializing) {
+      SplashScreen.hideAsync();
+    }
+  }, [isInitializing]);
+
+  if (isInitializing) {
+    return null;
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -32,12 +41,14 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <ThemePreferenceProvider>
-      <AuthProvider>
-        <PortfolioProvider>
-          <RootNavigator />
-        </PortfolioProvider>
-      </AuthProvider>
-    </ThemePreferenceProvider>
+    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister: asyncStoragePersister }}>
+      <ThemePreferenceProvider>
+        <AuthProvider>
+          <PortfolioProvider>
+            <RootNavigator />
+          </PortfolioProvider>
+        </AuthProvider>
+      </ThemePreferenceProvider>
+    </PersistQueryClientProvider>
   );
 }

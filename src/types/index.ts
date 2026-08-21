@@ -39,6 +39,7 @@ export type NewsArticle = {
 };
 
 export type User = {
+  id: string;
   name: string;
   email: string;
 };

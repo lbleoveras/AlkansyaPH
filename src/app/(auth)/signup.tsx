@@ -28,7 +28,11 @@ export default function SignupScreen() {
       return;
     }
     setError('');
-    await signup(name.trim(), email.trim(), password);
+    try {
+      await signup(name.trim(), email.trim(), password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    }
   };
 
   return (

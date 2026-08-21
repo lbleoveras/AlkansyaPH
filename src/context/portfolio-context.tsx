@@ -1,7 +1,9 @@
-import { createContext, ReactNode, use, useCallback, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { createContext, ReactNode, use, useCallback, useMemo } from 'react';
 
-import { getStockBySymbol } from '@/data/stocks';
-import { initialHoldings } from '@/data/holdings';
+import { useAuth } from '@/context/auth-context';
+import { useStocks } from '@/hooks/use-stocks';
+import { supabase } from '@/lib/supabase';
 import { Holding, Stock } from '@/types';
 
 export type HoldingWithMarketData = Holding & {
@@ -19,17 +21,60 @@ type PortfolioContextValue = {
   totalCostBasis: number;
   totalGainAmount: number;
   totalGainPercent: number;
+  isLoading: boolean;
+  isError: boolean;
   getHoldingBySymbol: (symbol: string) => Holding | undefined;
-  addHolding: (symbol: string, quantity: number, averagePrice: number) => void;
-  increaseHolding: (id: string, amount: number) => void;
-  decreaseHolding: (id: string, amount: number) => void;
-  removeHolding: (id: string) => void;
+  addHolding: (symbol: string, quantity: number, averagePrice: number) => Promise<void>;
+  increaseHolding: (id: string, amount: number) => Promise<void>;
+  decreaseHolding: (id: string, amount: number) => Promise<void>;
+  removeHolding: (id: string) => Promise<void>;
 };
 
 const PortfolioContext = createContext<PortfolioContextValue | null>(null);
 
+type HoldingRow = {
+  id: string;
+  symbol: string;
+  quantity: number | string;
+  average_price: number | string;
+  created_at: string;
+};
+
+function mapRowToHolding(row: HoldingRow): Holding {
+  return {
+    id: row.id,
+    symbol: row.symbol,
+    quantity: Number(row.quantity),
+    averagePrice: Number(row.average_price),
+    createdAt: row.created_at,
+  };
+}
+
+async function fetchHoldings(userId: string): Promise<Holding[]> {
+  const { data, error } = await supabase
+    .from('holdings')
+    .select('id, symbol, quantity, average_price, created_at')
+    .eq('user_id', userId);
+  if (error) throw error;
+  return (data ?? []).map(mapRowToHolding);
+}
+
 export function PortfolioProvider({ children }: { children: ReactNode }) {
-  const [holdings, setHoldings] = useState<Holding[]>(initialHoldings);
+  const { user } = useAuth();
+  const userId = user?.id;
+  const queryClient = useQueryClient();
+  const { getStockBySymbol } = useStocks();
+
+  const queryKey = useMemo(() => ['holdings', userId] as const, [userId]);
+
+  const holdingsQuery = useQuery({
+    queryKey,
+    queryFn: () => fetchHoldings(userId as string),
+    enabled: !!userId,
+    staleTime: 30_000,
+  });
+
+  const holdings = useMemo(() => holdingsQuery.data ?? [], [holdingsQuery.data]);
 
   const holdingsWithMarketData = useMemo<HoldingWithMarketData[]>(() => {
     return holdings
@@ -44,7 +89,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       })
       .filter((holding): holding is HoldingWithMarketData => holding !== null)
       .sort((a, b) => b.currentValue - a.currentValue);
-  }, [holdings]);
+  }, [holdings, getStockBySymbol]);
 
   const totalValue = useMemo(
     () => holdingsWithMarketData.reduce((sum, holding) => sum + holding.currentValue, 0),
@@ -62,55 +107,185 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [holdings],
   );
 
-  const addHolding = useCallback((symbol: string, quantity: number, averagePrice: number) => {
-    setHoldings((current) => {
-      const existing = current.find((holding) => holding.symbol === symbol);
+  const setHoldingsCache = useCallback(
+    (updater: (current: Holding[]) => Holding[]) => {
+      queryClient.setQueryData<Holding[]>(queryKey, (current) => updater(current ?? []));
+    },
+    [queryClient, queryKey],
+  );
+
+  const snapshotAndCancel = useCallback(async () => {
+    await queryClient.cancelQueries({ queryKey });
+    return queryClient.getQueryData<Holding[]>(queryKey);
+  }, [queryClient, queryKey]);
+
+  const rollback = useCallback(
+    (previous: Holding[] | undefined) => {
+      if (previous) queryClient.setQueryData(queryKey, previous);
+    },
+    [queryClient, queryKey],
+  );
+
+  const settle = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey });
+  }, [queryClient, queryKey]);
+
+  // Each mutation's variables are fully resolved by its wrapper callback
+  // *before* mutate() is called, from the hook's own reactive `holdings`
+  // state -- not re-derived inside onMutate/mutationFn from
+  // queryClient.getQueryData(). React Query runs onMutate before
+  // mutationFn, so if both independently read the query cache to compute
+  // "existing holding + amount", mutationFn would see onMutate's own
+  // optimistic write and double-apply the change (or, for a brand-new
+  // symbol, find onMutate's optimistic placeholder row and try to UPDATE
+  // its client-side `optimistic-...` id, which isn't a real uuid).
+  type AddHoldingArgs =
+    | { kind: 'insert'; symbol: string; quantity: number; averagePrice: number }
+    | { kind: 'update'; id: string; quantity: number; averagePrice: number };
+
+  const addHoldingMutation = useMutation({
+    mutationFn: async (args: AddHoldingArgs) => {
+      if (!userId) throw new Error('Not signed in');
+      if (args.kind === 'update') {
+        const { error } = await supabase
+          .from('holdings')
+          .update({ quantity: args.quantity, average_price: args.averagePrice })
+          .eq('id', args.id);
+        if (error) throw error;
+        return;
+      }
+      const { error } = await supabase.from('holdings').insert({
+        user_id: userId,
+        symbol: args.symbol,
+        quantity: args.quantity,
+        average_price: args.averagePrice,
+      });
+      if (error) throw error;
+    },
+    onMutate: async (args) => {
+      const previous = await snapshotAndCancel();
+      setHoldingsCache((current) => {
+        if (args.kind === 'update') {
+          return current.map((holding) =>
+            holding.id === args.id
+              ? { ...holding, quantity: args.quantity, averagePrice: args.averagePrice }
+              : holding,
+          );
+        }
+        return [
+          ...current,
+          {
+            id: `optimistic-${Date.now()}`,
+            symbol: args.symbol,
+            quantity: args.quantity,
+            averagePrice: args.averagePrice,
+            createdAt: new Date().toISOString(),
+          },
+        ];
+      });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => rollback(context?.previous),
+    onSettled: settle,
+  });
+
+  const increaseHoldingMutation = useMutation({
+    mutationFn: async ({ id, quantity }: { id: string; quantity: number }) => {
+      const { error } = await supabase.from('holdings').update({ quantity }).eq('id', id);
+      if (error) throw error;
+    },
+    onMutate: async ({ id, quantity }) => {
+      const previous = await snapshotAndCancel();
+      setHoldingsCache((current) =>
+        current.map((holding) => (holding.id === id ? { ...holding, quantity } : holding)),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => rollback(context?.previous),
+    onSettled: settle,
+  });
+
+  const decreaseHoldingMutation = useMutation({
+    mutationFn: async ({ id, nextQuantity }: { id: string; nextQuantity: number }) => {
+      if (nextQuantity === 0) {
+        const { error } = await supabase.from('holdings').delete().eq('id', id);
+        if (error) throw error;
+        return;
+      }
+      const { error } = await supabase.from('holdings').update({ quantity: nextQuantity }).eq('id', id);
+      if (error) throw error;
+    },
+    onMutate: async ({ id, nextQuantity }) => {
+      const previous = await snapshotAndCancel();
+      setHoldingsCache((current) =>
+        current
+          .map((holding) => (holding.id === id ? { ...holding, quantity: nextQuantity } : holding))
+          .filter((holding) => holding.quantity > 0),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => rollback(context?.previous),
+    onSettled: settle,
+  });
+
+  const removeHoldingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('holdings').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onMutate: async (id) => {
+      const previous = await snapshotAndCancel();
+      setHoldingsCache((current) => current.filter((holding) => holding.id !== id));
+      return { previous };
+    },
+    onError: (_err, _vars, context) => rollback(context?.previous),
+    onSettled: settle,
+  });
+
+  const addHolding = useCallback(
+    (symbol: string, quantity: number, averagePrice: number) => {
+      const existing = holdings.find((holding) => holding.symbol === symbol);
       if (existing) {
         const combinedQuantity = existing.quantity + quantity;
         const combinedCost = existing.averagePrice * existing.quantity + averagePrice * quantity;
-        return current.map((holding) =>
-          holding.id === existing.id
-            ? { ...holding, quantity: combinedQuantity, averagePrice: combinedCost / combinedQuantity }
-            : holding,
-        );
+        return addHoldingMutation.mutateAsync({
+          kind: 'update',
+          id: existing.id,
+          quantity: combinedQuantity,
+          averagePrice: combinedCost / combinedQuantity,
+        });
       }
       const stock = getStockBySymbol(symbol);
-      return [
-        ...current,
-        {
-          id: `h${Date.now()}`,
-          symbol,
-          quantity,
-          averagePrice: averagePrice || stock?.price || 0,
-          createdAt: new Date().toISOString(),
-        },
-      ];
-    });
-  }, []);
-
-  const increaseHolding = useCallback((id: string, amount: number) => {
-    setHoldings((current) =>
-      current.map((holding) =>
-        holding.id === id ? { ...holding, quantity: holding.quantity + amount } : holding,
-      ),
-    );
-  }, []);
-
-  const decreaseHolding = useCallback((id: string, amount: number) => {
-    setHoldings((current) =>
-      current
-        .map((holding) =>
-          holding.id === id
-            ? { ...holding, quantity: Math.max(0, holding.quantity - amount) }
-            : holding,
-        )
-        .filter((holding) => holding.quantity > 0),
-    );
-  }, []);
-
-  const removeHolding = useCallback((id: string) => {
-    setHoldings((current) => current.filter((holding) => holding.id !== id));
-  }, []);
+      return addHoldingMutation.mutateAsync({
+        kind: 'insert',
+        symbol,
+        quantity,
+        averagePrice: averagePrice || stock?.price || 0,
+      });
+    },
+    [holdings, getStockBySymbol, addHoldingMutation],
+  );
+  const increaseHolding = useCallback(
+    (id: string, amount: number) => {
+      const holding = holdings.find((item) => item.id === id);
+      if (!holding) return Promise.resolve();
+      return increaseHoldingMutation.mutateAsync({ id, quantity: holding.quantity + amount });
+    },
+    [holdings, increaseHoldingMutation],
+  );
+  const decreaseHolding = useCallback(
+    (id: string, amount: number) => {
+      const holding = holdings.find((item) => item.id === id);
+      if (!holding) return Promise.resolve();
+      const nextQuantity = Math.max(0, holding.quantity - amount);
+      return decreaseHoldingMutation.mutateAsync({ id, nextQuantity });
+    },
+    [holdings, decreaseHoldingMutation],
+  );
+  const removeHolding = useCallback(
+    (id: string) => removeHoldingMutation.mutateAsync(id),
+    [removeHoldingMutation],
+  );
 
   const value = useMemo<PortfolioContextValue>(
     () => ({
@@ -120,6 +295,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       totalCostBasis,
       totalGainAmount,
       totalGainPercent,
+      isLoading: holdingsQuery.isLoading,
+      isError: holdingsQuery.isError,
       getHoldingBySymbol,
       addHolding,
       increaseHolding,
@@ -133,6 +310,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       totalCostBasis,
       totalGainAmount,
       totalGainPercent,
+      holdingsQuery.isLoading,
+      holdingsQuery.isError,
       getHoldingBySymbol,
       addHolding,
       increaseHolding,

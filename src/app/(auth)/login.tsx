@@ -23,7 +23,11 @@ export default function LoginScreen() {
       return;
     }
     setError('');
-    await login(email.trim(), password);
+    try {
+      await login(email.trim(), password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    }
   };
 
   return (

@@ -2,19 +2,18 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { MarketIndexCard } from '@/components/market-index-card';
 import { ScreenHeader } from '@/components/screen-header';
 import { StockRow } from '@/components/stock-row';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { SearchBar } from '@/components/ui/search-bar';
 import { Radii, Spacing } from '@/constants/theme';
-import { pseiIndex } from '@/data/market-index';
-import { stocks } from '@/data/stocks';
+import { useStocks } from '@/hooks/use-stocks';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function StocksScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { stocks, isLoading } = useStocks();
   const [query, setQuery] = useState('');
 
   const filteredStocks = useMemo(() => {
@@ -24,13 +23,11 @@ export default function StocksScreen() {
       (stock) =>
         stock.symbol.includes(normalized) || stock.companyName.toUpperCase().includes(normalized),
     );
-  }, [query]);
+  }, [query, stocks]);
 
   return (
     <ScreenContainer>
       <ScreenHeader title="Stocks" />
-
-      <MarketIndexCard name={pseiIndex.name} value={pseiIndex.value} />
 
       <View style={styles.searchWrap}>
         <SearchBar value={query} onChangeText={setQuery} placeholder="Search PSE stocks" />
@@ -42,7 +39,7 @@ export default function StocksScreen() {
 
       {filteredStocks.length === 0 ? (
         <Text style={[styles.empty, { color: theme.textSecondary }]}>
-          No stocks match &quot;{query}&quot;.
+          {isLoading ? 'Loading stocks…' : `No stocks match "${query}".`}
         </Text>
       ) : (
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>

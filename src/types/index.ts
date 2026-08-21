@@ -26,7 +26,7 @@ export type PortfolioPoint = {
   value: number;
 };
 
-export type PerformanceRange = '1W' | '1M' | '3M' | '1Y';
+export type PerformanceRange = '1D' | '1W' | '1M' | '3M' | '1Y';
 
 export type NewsArticle = {
   id: string;

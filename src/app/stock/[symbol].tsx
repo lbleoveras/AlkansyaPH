@@ -25,7 +25,7 @@ import {
   formatSignedPoints,
 } from '@/utils/format';
 
-const RANGES: PerformanceRange[] = ['1W', '1M', '3M', '1Y'];
+const RANGES: PerformanceRange[] = ['1D', '1W', '1M', '3M', '1Y'];
 
 export default function StockDetailScreen() {
   const theme = useTheme();

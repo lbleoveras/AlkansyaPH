@@ -13,7 +13,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { PerformanceRange } from '@/types';
 import { formatSignedPercent } from '@/utils/format';
 
-const RANGES: PerformanceRange[] = ['1W', '1M', '3M', '1Y'];
+const RANGES: PerformanceRange[] = ['1D', '1W', '1M', '3M', '1Y'];
 
 export function PerformanceCard({ holdings }: { holdings: HoldingWithMarketData[] }) {
   const theme = useTheme();
@@ -32,9 +32,16 @@ export function PerformanceCard({ holdings }: { holdings: HoldingWithMarketData[
     const unique = Array.from(new Set(indices));
     return unique.map((index) => {
       const date = new Date(points[index].date);
+      if (range === '1D') {
+        return date.toLocaleTimeString('en-PH', {
+          hour: 'numeric',
+          minute: '2-digit',
+          timeZone: 'Asia/Manila',
+        });
+      }
       return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: '2-digit' });
     });
-  }, [points]);
+  }, [points, range]);
 
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>

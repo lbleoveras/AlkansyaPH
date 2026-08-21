@@ -5,7 +5,7 @@ import { HoldingWithMarketData } from '@/context/portfolio-context';
 import { supabase } from '@/lib/supabase';
 import { PerformanceRange, PortfolioPoint } from '@/types';
 
-const RANGE_DAYS: Record<PerformanceRange, number> = {
+const RANGE_DAYS: Record<Exclude<PerformanceRange, '1D'>, number> = {
   '1W': 7,
   '1M': 30,
   '3M': 90,
@@ -18,6 +18,12 @@ const LOOKBACK_BUFFER_DAYS = 30;
 
 type HistoryRow = { symbol: string; captured_at: string; price: number | string };
 
+function todayStartIso(): string {
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  return start.toISOString();
+}
+
 async function fetchHistoryForSymbols(symbols: string[], sinceIso: string): Promise<HistoryRow[]> {
   if (symbols.length === 0) return [];
   const { data, error } = await supabase
@@ -28,6 +34,45 @@ async function fetchHistoryForSymbols(symbols: string[], sinceIso: string): Prom
     .order('captured_at', { ascending: true });
   if (error) throw error;
   return (data ?? []) as HistoryRow[];
+}
+
+// 1D needs the raw intraday ticks rather than one point per day --
+// sync-stock-quotes writes a stock_price_history row every ~15 min during
+// market hours, all symbols in a given sync run sharing the exact same
+// captured_at (computed once per invocation), so aligning across symbols by
+// that timestamp is exact. Purchase date isn't gated intraday since we only
+// know the purchase *date*, not a time -- a holding bought today counts for
+// all of today's ticks.
+function computeIntradayPortfolioPoints(
+  holdings: HoldingWithMarketData[],
+  rows: HistoryRow[],
+): PortfolioPoint[] {
+  if (holdings.length === 0) return [];
+
+  const bySymbolTick = new Map<string, Map<string, number>>();
+  for (const row of rows) {
+    const tickMap = bySymbolTick.get(row.symbol) ?? new Map<string, number>();
+    tickMap.set(row.captured_at, Number(row.price));
+    bySymbolTick.set(row.symbol, tickMap);
+  }
+
+  const ticks = Array.from(
+    new Set(Array.from(bySymbolTick.values()).flatMap((tickMap) => Array.from(tickMap.keys()))),
+  ).sort();
+
+  if (ticks.length === 0) return [];
+
+  const lastKnown = new Map<string, number>();
+  return ticks.map((tick) => {
+    let total = 0;
+    for (const holding of holdings) {
+      const priceAtTick = bySymbolTick.get(holding.symbol)?.get(tick);
+      if (priceAtTick !== undefined) lastKnown.set(holding.symbol, priceAtTick);
+      const price = lastKnown.get(holding.symbol) ?? holding.stock.price;
+      total += price * holding.quantity;
+    }
+    return { date: tick, value: total };
+  });
 }
 
 // There's no transaction/quantity-history ledger in this app (see CLAUDE.md's
@@ -46,7 +91,7 @@ async function fetchHistoryForSymbols(symbols: string[], sinceIso: string): Prom
 function computePortfolioPoints(
   holdings: HoldingWithMarketData[],
   rows: HistoryRow[],
-  range: PerformanceRange,
+  range: Exclude<PerformanceRange, '1D'>,
 ): PortfolioPoint[] {
   if (holdings.length === 0) return [];
 
@@ -108,6 +153,7 @@ export function usePortfolioHistory(
   const symbolsKey = symbols.join(',');
 
   const sinceIso = useMemo(() => {
+    if (range === '1D') return todayStartIso();
     const since = new Date();
     since.setDate(since.getDate() - (RANGE_DAYS[range] + LOOKBACK_BUFFER_DAYS));
     return since.toISOString();
@@ -117,13 +163,13 @@ export function usePortfolioHistory(
     queryKey: ['portfolio-history', symbolsKey, range],
     queryFn: () => fetchHistoryForSymbols(symbols, sinceIso),
     enabled: symbols.length > 0,
-    staleTime: 5 * 60_000,
+    staleTime: range === '1D' ? 60_000 : 5 * 60_000,
   });
 
-  const points = useMemo(
-    () => computePortfolioPoints(holdings, query.data ?? [], range),
-    [holdings, query.data, range],
-  );
+  const points = useMemo(() => {
+    if (range === '1D') return computeIntradayPortfolioPoints(holdings, query.data ?? []);
+    return computePortfolioPoints(holdings, query.data ?? [], range);
+  }, [holdings, query.data, range]);
 
   const currentTotal = useMemo(
     () => holdings.reduce((sum, holding) => sum + holding.currentValue, 0),

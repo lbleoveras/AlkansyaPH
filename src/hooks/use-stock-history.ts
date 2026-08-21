@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { PerformanceRange, PortfolioPoint } from '@/types';
 
-const RANGE_DAYS: Record<PerformanceRange, number> = {
+const RANGE_DAYS: Record<Exclude<PerformanceRange, '1D'>, number> = {
   '1W': 7,
   '1M': 30,
   '3M': 90,
@@ -22,7 +22,32 @@ function bucketByDay(rows: HistoryRow[]): PortfolioPoint[] {
   return Array.from(byDay.values());
 }
 
+// Every other range shows one point per calendar day (the day's closing
+// price). 1D needs the raw intraday ticks -- sync-stock-quotes writes one
+// stock_price_history row every ~15 min during market hours, all sharing the
+// exact same captured_at within a given sync run since it's computed once
+// per invocation.
+function todayStartIso(): string {
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  return start.toISOString();
+}
+
 async function fetchStockHistory(symbol: string, range: PerformanceRange): Promise<PortfolioPoint[]> {
+  if (range === '1D') {
+    const { data, error } = await supabase
+      .from('stock_price_history')
+      .select('captured_at, price')
+      .eq('symbol', symbol)
+      .gte('captured_at', todayStartIso())
+      .order('captured_at', { ascending: true });
+    if (error) throw error;
+    return ((data ?? []) as HistoryRow[]).map((row) => ({
+      date: row.captured_at,
+      value: Number(row.price),
+    }));
+  }
+
   const since = new Date();
   since.setDate(since.getDate() - RANGE_DAYS[range]);
 

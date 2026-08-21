@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthMark } from '@/components/auth-mark';
@@ -11,21 +11,29 @@ import { useAuth } from '@/context/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { rememberEmail } from '@/lib/auth-memory';
 
+const MIN_PASSWORD_LENGTH = 8;
+
 export default function SignupScreen() {
   const theme = useTheme();
   const { signup, isSubmitting } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [website, setWebsite] = useState(''); // honeypot -- real users never see or fill this
   const [error, setError] = useState('');
 
   const handleSignup = async () => {
+    if (website.trim()) {
+      // Bot filled the hidden field. Fail generically -- don't reveal the trap.
+      setError('Something went wrong. Please try again.');
+      return;
+    }
     if (!name.trim() || !email.trim() || !password.trim()) {
       setError('Fill in all fields to create your account.');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
       return;
     }
     setError('');
@@ -60,9 +68,19 @@ export default function SignupScreen() {
                 label="Password"
                 value={password}
                 onChangeText={setPassword}
-                placeholder="At least 6 characters"
+                placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
                 secureTextEntry
                 error={error || undefined}
+              />
+              <TextInput
+                value={website}
+                onChangeText={setWebsite}
+                style={styles.honeypot}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                tabIndex={-1}
+                autoComplete="off"
+                autoCorrect={false}
               />
               <PrimaryButton
                 label="Create Account"
@@ -103,6 +121,12 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: Spacing.three,
+  },
+  honeypot: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
   },
   submit: {
     marginTop: Spacing.two,

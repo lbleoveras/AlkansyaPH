@@ -4,19 +4,54 @@
 //
 // Replaces the earlier PSE-Edge-HTML-scraping approach (retired: edge.pse.com.ph's
 // robots.txt explicitly disallows ClaudeBot). Instead, fetches live PSE quotes from
-// phisix (https://phisix-api3.appspot.com/stocks.json) — a single JSON request that
+// phisix (https://phisix-api3.appspot.com/stocks.json) -- a single JSON request that
 // returns every PSE-listed security at once, no per-company scraping needed.
 //
+// Internal/cron-only: deployed with verify_jwt disabled and its own secret check
+// below, because verify_jwt alone would accept *any* valid Supabase JWT -- including
+// the public anon key shipped in the app bundle, which is not actually a secret.
+// Only pg_cron (holding the internal_cron_secret from Vault) is meant to call this.
+//
 // On each invocation:
-//   1. Checks whether the PSE market is currently open (Asia/Manila trading hours).
-//      Authoritative gate — no-ops outside market hours regardless of cron timing.
-//   2. Fetches phisix's full stock list in one request.
-//   3. Updates only the symbols we track (present in `stocks`), deriving a signed
+//   1. Verifies the caller via the internal secret (see isAuthorizedInternalCaller).
+//   2. Checks whether the PSE market is currently open (Asia/Manila trading hours).
+//      Authoritative gate -- no-ops outside market hours regardless of cron timing.
+//   3. Fetches phisix's full stock list in one request.
+//   4. Updates only the symbols we track (present in `stocks`), deriving a signed
 //      peso change from phisix's percentChange since phisix doesn't provide one
 //      directly, and logs a row per symbol into `stock_price_history`.
-//   4. Responds 200 with a summary of what happened.
+//   5. Responds 200 with a summary of what happened.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+
+// ---------------------------------------------------------------------------
+// Internal-caller auth (see file header)
+// ---------------------------------------------------------------------------
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const aBytes = enc.encode(a);
+  const bBytes = enc.encode(b);
+  const length = Math.max(aBytes.length, bBytes.length, 1);
+  let diff = aBytes.length === bBytes.length ? 0 : 1;
+  for (let i = 0; i < length; i++) {
+    diff |= (aBytes[i] ?? 0) ^ (bBytes[i] ?? 0);
+  }
+  return diff === 0;
+}
+
+async function isAuthorizedInternalCaller(
+  req: Request,
+  supabase: ReturnType<typeof createClient>,
+): Promise<boolean> {
+  const provided = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!provided) return false;
+  const { data: expected } = await supabase.rpc("get_internal_secret", {
+    secret_name: "internal_cron_secret",
+  });
+  if (!expected) return false;
+  return timingSafeEqual(provided, expected as string);
+}
 
 // ---------------------------------------------------------------------------
 // PSE market-hours gate (ported from src/utils/market-hours.ts)
@@ -68,11 +103,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-Deno.serve(async (_req: Request) => {
-  if (!isPseMarketOpen()) {
-    return jsonResponse({ skipped: true, reason: "market-closed" });
-  }
-
+Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -84,6 +115,14 @@ Deno.serve(async (_req: Request) => {
   }
 
   const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+  if (!(await isAuthorizedInternalCaller(req, supabase))) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
+
+  if (!isPseMarketOpen()) {
+    return jsonResponse({ skipped: true, reason: "market-closed" });
+  }
 
   const { data: rows, error: selectError } = await supabase.from("stocks").select("symbol");
   if (selectError) {
@@ -115,7 +154,7 @@ Deno.serve(async (_req: Request) => {
     try {
       const price = stock.price.amount;
       const changePercent = stock.percentChange;
-      // phisix gives percent change but not a signed peso amount directly —
+      // phisix gives percent change but not a signed peso amount directly --
       // derive it from the implied previous close.
       const impliedPrevClose = changePercent !== 0 ? price / (1 + changePercent / 100) : price;
       const changeAmount = price - impliedPrevClose;

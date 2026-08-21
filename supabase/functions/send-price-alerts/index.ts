@@ -9,12 +9,42 @@
 // past the threshold all day only triggers one push per user per symbol
 // per day, and a user with no registered device is skipped without being
 // marked as alerted (so a later same-day registration can still catch it).
+//
+// Internal/cron-only: deployed with verify_jwt disabled and its own secret
+// check below (see isAuthorizedInternalCaller) -- this reads every user's
+// holdings and pushes to their devices, so it must not be triggerable by
+// just any signed-in user holding the public anon key.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const ALERT_THRESHOLD_PERCENT = 5;
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const EXPO_PUSH_BATCH_SIZE = 100;
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const aBytes = enc.encode(a);
+  const bBytes = enc.encode(b);
+  const length = Math.max(aBytes.length, bBytes.length, 1);
+  let diff = aBytes.length === bBytes.length ? 0 : 1;
+  for (let i = 0; i < length; i++) {
+    diff |= (aBytes[i] ?? 0) ^ (bBytes[i] ?? 0);
+  }
+  return diff === 0;
+}
+
+async function isAuthorizedInternalCaller(
+  req: Request,
+  supabase: ReturnType<typeof createClient>,
+): Promise<boolean> {
+  const provided = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!provided) return false;
+  const { data: expected } = await supabase.rpc("get_internal_secret", {
+    secret_name: "internal_cron_secret",
+  });
+  if (!expected) return false;
+  return timingSafeEqual(provided, expected as string);
+}
 
 interface HoldingRow {
   user_id: string;
@@ -41,13 +71,17 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !supabaseServiceRoleKey) {
     return jsonResponse({ error: "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" }, 500);
   }
   const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+  if (!(await isAuthorizedInternalCaller(req, supabase))) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
 
   const today = new Date().toISOString().slice(0, 10);
 

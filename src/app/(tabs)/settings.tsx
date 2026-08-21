@@ -71,6 +71,16 @@ export default function SettingsScreen() {
             <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Change Password</Text>
             <Ionicons name="chevron-forward" size={16} color={theme.iconMuted} />
           </Pressable>
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+          <Pressable
+            onPress={() => router.push('/delete-account')}
+            style={({ pressed }) => [styles.linkRow, pressed && { opacity: 0.6 }]}>
+            <View style={[styles.infoIcon, { backgroundColor: theme.negativeSoft }]}>
+              <Ionicons name="trash-outline" size={16} color={theme.negative} />
+            </View>
+            <Text style={[styles.infoLabel, { color: theme.negative }]}>Delete Account</Text>
+            <Ionicons name="chevron-forward" size={16} color={theme.iconMuted} />
+          </Pressable>
         </View>
       </View>
 

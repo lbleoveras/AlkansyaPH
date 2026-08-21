@@ -15,6 +15,7 @@ type AuthContextValue = {
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -97,6 +98,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (verifyError) throw new Error('Current password is incorrect.');
           const { error } = await supabase.auth.updateUser({ password: newPassword });
           if (error) throw error;
+          // Force every other signed-in device to re-authenticate; only this
+          // session (the one that just proved the new password) stays live.
+          await supabase.auth.signOut({ scope: 'others' });
+        } finally {
+          setIsSubmitting(false);
+        }
+      },
+      async deleteAccount() {
+        setIsSubmitting(true);
+        try {
+          // Cascades to holdings/push_tokens/price_alerts_sent server-side --
+          // nothing left to clean up locally once this succeeds.
+          const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
+          if (error) throw error;
+          await supabase.auth.signOut();
         } finally {
           setIsSubmitting(false);
         }

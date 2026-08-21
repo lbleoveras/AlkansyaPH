@@ -3,20 +3,55 @@
 // Supabase Edge Function: sync-news
 //
 // Pulls PH business news from two legitimate, syndication-designed RSS feeds
-// (no robots.txt AI restrictions on either, unlike edge.pse.com.ph — see
+// (no robots.txt AI restrictions on either, unlike edge.pse.com.ph -- see
 // sync-stock-quotes' history) and keeps only articles that are actually
 // relevant to a PH stock-market audience:
 //   - articles that name one of our tracked companies get tagged with that
 //     symbol (related_symbol)
 //   - articles that don't name a specific company but are clearly general
 //     market/PSEi news are kept untagged
-//   - everything else (unrelated PH business news — health care launches,
+//   - everything else (unrelated PH business news -- health care launches,
 //     real-estate project openings, etc.) is dropped
 //
-// Runs once daily via pg_cron (no market-hours gate — news isn't tied to
+// Runs once daily via pg_cron (no market-hours gate -- news isn't tied to
 // trading sessions the way price data is).
+//
+// Internal/cron-only: deployed with verify_jwt disabled and its own secret
+// check below (see isAuthorizedInternalCaller) -- verify_jwt alone would
+// accept any valid Supabase JWT, including the public anon key.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+
+// ---------------------------------------------------------------------------
+// Internal-caller auth
+// ---------------------------------------------------------------------------
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const aBytes = enc.encode(a);
+  const bBytes = enc.encode(b);
+  const length = Math.max(aBytes.length, bBytes.length, 1);
+  let diff = aBytes.length === bBytes.length ? 0 : 1;
+  for (let i = 0; i < length; i++) {
+    diff |= (aBytes[i] ?? 0) ^ (bBytes[i] ?? 0);
+  }
+  return diff === 0;
+}
+
+async function isAuthorizedInternalCaller(
+  req: Request,
+  supabase: ReturnType<typeof createClient>,
+): Promise<boolean> {
+  const provided = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!provided) return false;
+  const { data: expected } = await supabase.rpc("get_internal_secret", {
+    secret_name: "internal_cron_secret",
+  });
+  if (!expected) return false;
+  return timingSafeEqual(provided, expected as string);
+}
+
+// ---------------------------------------------------------------------------
 
 const FEEDS: { url: string; source: string }[] = [
   { url: "https://www.philstar.com/rss/business", source: "Philstar" },
@@ -132,7 +167,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -144,6 +179,10 @@ Deno.serve(async (_req: Request) => {
   }
 
   const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+  if (!(await isAuthorizedInternalCaller(req, supabase))) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
 
   const { data: stocks, error: stocksError } = await supabase.from("stocks").select("symbol, company_name");
   if (stocksError) {

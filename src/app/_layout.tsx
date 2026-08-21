@@ -42,6 +42,7 @@ function RootNavigator() {
         <Stack.Screen name="add-holding" options={{ presentation: 'modal' }} />
         <Stack.Screen name="edit-holding/[id]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="change-password" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="delete-account" options={{ presentation: 'modal' }} />
         <Stack.Screen name="stock/[symbol]" />
       </Stack.Protected>
     </Stack>

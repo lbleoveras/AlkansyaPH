@@ -51,6 +51,12 @@
         "projectId": "e45a5ecc-8e20-408b-8a4f-dec099e1ba32"
       }
     },
-    "owner": "lorenzoleoveras"
+    "owner": "lorenzoleoveras",
+    "updates": {
+      "url": "https://u.expo.dev/e45a5ecc-8e20-408b-8a4f-dec099e1ba32"
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    }
   }
 }

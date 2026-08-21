@@ -17,7 +17,7 @@ const RANGES: PerformanceRange[] = ['1W', '1M', '3M', '1Y'];
 
 export function PerformanceCard({ holdings }: { holdings: HoldingWithMarketData[] }) {
   const theme = useTheme();
-  const { formatSignedCurrency } = useMoneyFormat();
+  const { formatCurrency, formatSignedCurrency } = useMoneyFormat();
   const { range, setRange, points, changeAmount, changePercent, isPositive } =
     usePortfolioHistory(holdings);
 
@@ -32,7 +32,7 @@ export function PerformanceCard({ holdings }: { holdings: HoldingWithMarketData[
     const unique = Array.from(new Set(indices));
     return unique.map((index) => {
       const date = new Date(points[index].date);
-      return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+      return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: '2-digit' });
     });
   }, [points]);
 
@@ -54,7 +54,12 @@ export function PerformanceCard({ holdings }: { holdings: HoldingWithMarketData[
         <MarketStatusBadge />
       </View>
 
-      <PerformanceGraph points={points} color={color} />
+      <PerformanceGraph
+        points={points}
+        color={color}
+        formatValue={formatCurrency}
+        labelColor={theme.textSecondary}
+      />
 
       {axisLabels.length > 0 && (
         <View style={styles.axisRow}>

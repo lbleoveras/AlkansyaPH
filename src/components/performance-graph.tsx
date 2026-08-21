@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutChangeEvent, View } from 'react-native';
+import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { PortfolioPoint } from '@/types';
@@ -40,9 +40,17 @@ type PerformanceGraphProps = {
   points: PortfolioPoint[];
   color: string;
   height?: number;
+  formatValue?: (value: number) => string;
+  labelColor?: string;
 };
 
-export function PerformanceGraph({ points, color, height = 150 }: PerformanceGraphProps) {
+export function PerformanceGraph({
+  points,
+  color,
+  height = 150,
+  formatValue,
+  labelColor,
+}: PerformanceGraphProps) {
   const [width, setWidth] = useState(0);
 
   const onLayout = (event: LayoutChangeEvent) => {
@@ -58,6 +66,11 @@ export function PerformanceGraph({ points, color, height = 150 }: PerformanceGra
       : '';
   const lastPoint = coords[coords.length - 1];
   const gradientId = 'performanceGradient';
+
+  const values = points.map((point) => point.value);
+  const minValue = values.length > 0 ? Math.min(...values) : 0;
+  const maxValue = values.length > 0 ? Math.max(...values) : 0;
+  const showValueLabels = formatValue && points.length > 0;
 
   return (
     <View onLayout={onLayout} style={{ height }}>
@@ -86,6 +99,33 @@ export function PerformanceGraph({ points, color, height = 150 }: PerformanceGra
           )}
         </Svg>
       )}
+      {showValueLabels && (
+        <>
+          <Text style={[styles.valueLabel, styles.valueLabelTop, { color: labelColor }]}>
+            {formatValue(maxValue)}
+          </Text>
+          {maxValue !== minValue && (
+            <Text style={[styles.valueLabel, styles.valueLabelBottom, { color: labelColor }]}>
+              {formatValue(minValue)}
+            </Text>
+          )}
+        </>
+      )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  valueLabel: {
+    position: 'absolute',
+    left: 4,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  valueLabelTop: {
+    top: 2,
+  },
+  valueLabelBottom: {
+    bottom: 2,
+  },
+});

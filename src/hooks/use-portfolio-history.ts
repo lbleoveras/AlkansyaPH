@@ -36,6 +36,13 @@ async function fetchHistoryForSymbols(symbols: string[], sinceIso: string): Prom
 // price per day) -- the standard simplification for this data shape -- forward-
 // filling each symbol's price across days it wasn't scraped, and falling back to
 // the live price for days before any history exists at all for that symbol.
+//
+// The visible range is clamped so it never starts before the earliest
+// purchase date across current holdings (a 1Y view for a position bought
+// last month should show one month, not a fabricated year), and each
+// holding only contributes to the total from its own purchase date onward
+// -- so buying a second position partway through the visible window shows
+// up as a real step up in the line, not a flat backward projection.
 function computePortfolioPoints(
   holdings: HoldingWithMarketData[],
   rows: HistoryRow[],
@@ -53,7 +60,12 @@ function computePortfolioPoints(
 
   const rangeCutoffDay = new Date();
   rangeCutoffDay.setDate(rangeCutoffDay.getDate() - RANGE_DAYS[range]);
-  const cutoff = rangeCutoffDay.toISOString().slice(0, 10);
+  const rangeCutoff = rangeCutoffDay.toISOString().slice(0, 10);
+  const earliestPurchase = holdings.reduce(
+    (earliest, holding) => (holding.purchasedAt < earliest ? holding.purchasedAt : earliest),
+    holdings[0].purchasedAt,
+  );
+  const cutoff = rangeCutoff > earliestPurchase ? rangeCutoff : earliestPurchase;
   const today = new Date().toISOString().slice(0, 10);
 
   const lastKnown = new Map<string, number>();
@@ -76,6 +88,7 @@ function computePortfolioPoints(
   return visibleDays.map((day) => {
     let total = 0;
     for (const holding of holdings) {
+      if (day < holding.purchasedAt) continue; // not owned yet on this day
       const priceToday = bySymbolDay.get(holding.symbol)?.get(day);
       if (priceToday !== undefined) lastKnown.set(holding.symbol, priceToday);
       const price = lastKnown.get(holding.symbol) ?? holding.stock.price;

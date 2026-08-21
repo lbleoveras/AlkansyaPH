@@ -123,7 +123,12 @@ export default function StockDetailScreen() {
         <View style={styles.statusRow}>
           <MarketStatusBadge />
         </View>
-        <PerformanceGraph points={points} color={color} />
+        <PerformanceGraph
+          points={points}
+          color={color}
+          formatValue={formatCurrency}
+          labelColor={theme.textSecondary}
+        />
         <View style={styles.rangeRow}>
           <SegmentedControl options={RANGES} value={range} onChange={setRange} />
         </View>

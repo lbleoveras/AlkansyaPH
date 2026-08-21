@@ -89,7 +89,7 @@ export default function AddHoldingScreen() {
                   key={stock.symbol}
                   onPress={() => setSelectedSymbol(stock.symbol)}
                   style={({ pressed }) => [styles.pickerRow, pressed && { opacity: 0.6 }]}>
-                  <AvatarBadge label={stock.symbol} color={stock.color} size={38} />
+                  <AvatarBadge label={stock.symbol} color={stock.color} size={38} symbol={stock.symbol} />
                   <View style={styles.pickerInfo}>
                     <Text style={[styles.pickerSymbol, { color: theme.text }]}>{stock.symbol}</Text>
                     <Text style={[styles.pickerCompany, { color: theme.textSecondary }]} numberOfLines={1}>
@@ -108,7 +108,7 @@ export default function AddHoldingScreen() {
             <Pressable
               onPress={() => setSelectedSymbol(null)}
               style={[styles.selectedCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <AvatarBadge label={selectedStock.symbol} color={selectedStock.color} size={48} />
+              <AvatarBadge label={selectedStock.symbol} color={selectedStock.color} size={48} symbol={selectedStock.symbol} />
               <View style={styles.pickerInfo}>
                 <Text style={[styles.pickerSymbol, { color: theme.text }]}>{selectedStock.symbol}</Text>
                 <Text style={[styles.pickerCompany, { color: theme.textSecondary }]} numberOfLines={1}>

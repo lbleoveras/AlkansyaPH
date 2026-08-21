@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthMark } from '@/components/auth-mark';
@@ -46,9 +46,13 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.flex, { backgroundColor: theme.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      behavior={Platform.select({ ios: 'padding', android: 'height' })}
+      keyboardVerticalOffset={Platform.select({ ios: 0, android: 24 })}>
       <SafeAreaView style={styles.flex}>
-        <View style={styles.centerRow}>
+        <ScrollView
+          contentContainerStyle={styles.centerRow}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <AuthMark
               title={isReturningDevice ? 'Welcome back' : 'Welcome'}
@@ -71,6 +75,9 @@ export default function LoginScreen() {
                 secureTextEntry
                 error={error || undefined}
               />
+              <Link href="/(auth)/forgot-password" style={styles.forgotLink}>
+                <Text style={{ color: theme.tint, fontWeight: '600', fontSize: 13 }}>Forgot password?</Text>
+              </Link>
               <PrimaryButton
                 label="Log In"
                 onPress={handleLogin}
@@ -86,7 +93,7 @@ export default function LoginScreen() {
               </Link>
             </View>
           </View>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </KeyboardAvoidingView>
   );
@@ -97,19 +104,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   centerRow: {
-    flex: 1,
-    flexDirection: 'row',
+    flexGrow: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.four,
   },
   content: {
     width: '100%',
     maxWidth: MaxContentWidth,
     justifyContent: 'center',
-    flex: 1,
   },
   form: {
     gap: Spacing.three,
+  },
+  forgotLink: {
+    alignSelf: 'flex-end',
+    marginTop: -Spacing.two,
   },
   submit: {
     marginTop: Spacing.two,

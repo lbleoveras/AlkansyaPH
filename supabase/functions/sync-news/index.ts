@@ -160,6 +160,34 @@ function isGeneralMarketNews(text: string): boolean {
   return MARKET_KEYWORDS.some((keyword) => lower.includes(keyword));
 }
 
+// Neither feed embeds a per-article image directly, but every article page
+// on both sites exposes a standard og:image meta tag (verified against live
+// pages from both publishers). Only called for articles we're about to
+// insert for the first time -- see the upsert/count check below -- so a
+// daily run doesn't re-fetch every already-synced article's page.
+async function fetchArticleImage(url: string): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; AlkansyaPH/1.0; +personal portfolio tracker)" },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!response.ok) return null;
+    const html = await response.text();
+    // og:image is always in <head> -- cap how much of a (potentially huge) page we scan.
+    const head = html.slice(0, 60_000);
+    const match =
+      head.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ??
+      head.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+    return match ? decodeEntities(match[1]) : null;
+  } catch (err) {
+    console.error(`[sync-news] Failed to fetch og:image for ${url}: ${err instanceof Error ? err.message : err}`);
+    return null;
+  }
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -235,7 +263,19 @@ Deno.serve(async (req: Request) => {
           console.error(`[sync-news] Failed to upsert "${item.title}": ${insertError.message}`);
           continue;
         }
-        if (count) inserted += count;
+        if (!count) continue; // already synced on a previous run -- nothing new to do
+        inserted += count;
+
+        const imageUrl = await fetchArticleImage(item.link);
+        if (imageUrl) {
+          const { error: imageError } = await supabase
+            .from("news_articles")
+            .update({ image_url: imageUrl })
+            .eq("url", item.link);
+          if (imageError) {
+            console.error(`[sync-news] Failed to save image for "${item.title}": ${imageError.message}`);
+          }
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

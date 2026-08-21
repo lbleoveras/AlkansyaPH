@@ -11,7 +11,7 @@ import { useMoneyFormat } from '@/hooks/use-money-format';
 import { usePortfolioHistory } from '@/hooks/use-portfolio-history';
 import { useTheme } from '@/hooks/use-theme';
 import { PerformanceRange } from '@/types';
-import { formatSignedPercent } from '@/utils/format';
+import { formatChartPointLabel, formatSignedPercent } from '@/utils/format';
 
 const RANGES: PerformanceRange[] = ['1D', '1W', '1M', '3M', '1Y'];
 
@@ -30,17 +30,7 @@ export function PerformanceCard({ holdings }: { holdings: HoldingWithMarketData[
       Math.round((i / (count - 1 || 1)) * (points.length - 1)),
     );
     const unique = Array.from(new Set(indices));
-    return unique.map((index) => {
-      const date = new Date(points[index].date);
-      if (range === '1D') {
-        return date.toLocaleTimeString('en-PH', {
-          hour: 'numeric',
-          minute: '2-digit',
-          timeZone: 'Asia/Manila',
-        });
-      }
-      return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: '2-digit' });
-    });
+    return unique.map((index) => formatChartPointLabel(points[index].date, range));
   }, [points, range]);
 
   return (
@@ -65,7 +55,10 @@ export function PerformanceCard({ holdings }: { holdings: HoldingWithMarketData[
         points={points}
         color={color}
         formatValue={formatCurrency}
-        labelColor={theme.textSecondary}
+        formatPointLabel={(point) => formatChartPointLabel(point.date, range)}
+        labelColor={theme.text}
+        tooltipBackground={theme.card}
+        tooltipBorder={theme.border}
       />
 
       {axisLabels.length > 0 && (

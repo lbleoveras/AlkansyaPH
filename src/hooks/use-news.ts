@@ -11,6 +11,7 @@ type NewsArticleRow = {
   url: string;
   published_at: string;
   related_symbol: string | null;
+  image_url: string | null;
 };
 
 function mapRowToArticle(row: NewsArticleRow): NewsArticle {
@@ -19,7 +20,7 @@ function mapRowToArticle(row: NewsArticleRow): NewsArticle {
     headline: row.headline,
     source: row.source,
     publishedAt: row.published_at,
-    imageUrl: '',
+    imageUrl: row.image_url ?? '',
     summary: row.summary ?? '',
     url: row.url,
     relatedSymbol: row.related_symbol ?? undefined,
@@ -29,7 +30,7 @@ function mapRowToArticle(row: NewsArticleRow): NewsArticle {
 async function fetchNews(): Promise<NewsArticle[]> {
   const { data, error } = await supabase
     .from('news_articles')
-    .select('id, headline, source, summary, url, published_at, related_symbol')
+    .select('id, headline, source, summary, url, published_at, related_symbol, image_url')
     .order('published_at', { ascending: false })
     .limit(50);
   if (error) throw error;

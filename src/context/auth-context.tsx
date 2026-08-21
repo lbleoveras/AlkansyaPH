@@ -1,18 +1,27 @@
 import { Session } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
+import * as Linking from 'expo-linking';
 import { createContext, ReactNode, use, useEffect, useMemo, useState } from 'react';
 
+import { parseAuthDeepLink } from '@/lib/auth-deep-link';
 import { unregisterPushNotifications } from '@/lib/notifications';
+import { markOnboardingPending } from '@/lib/onboarding-memory';
 import { supabase } from '@/lib/supabase';
 import { User } from '@/types';
+
+type SignupResult = { needsEmailConfirmation: boolean };
 
 type AuthContextValue = {
   isAuthenticated: boolean;
   isInitializing: boolean;
+  isPasswordRecovery: boolean;
   user: User | null;
   isSubmitting: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<SignupResult>;
+  resendVerificationEmail: (email: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  completePasswordReset: (newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -32,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -47,16 +57,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Prevent the next user on this device from seeing a flash of the
         // previous user's persisted holdings before the RLS-scoped refetch lands.
         queryClient.clear();
+        setIsPasswordRecovery(false);
       }
     });
 
     return () => subscription.unsubscribe();
   }, [queryClient]);
 
+  useEffect(() => {
+    // RN doesn't auto-detect the session tokens Supabase's hosted auth
+    // pages redirect back with (that's a web-only `detectSessionInUrl`
+    // behavior) -- parse the incoming deep link ourselves and establish the
+    // session by hand. A `type=recovery` link additionally flips
+    // isPasswordRecovery so the root layout can route to the "set a new
+    // password" screen instead of treating this as a normal sign-in.
+    async function consume(url: string | null) {
+      if (!url) return;
+      const parsed = parseAuthDeepLink(url);
+      if (!parsed) return;
+      const { error } = await supabase.auth.setSession({
+        access_token: parsed.accessToken,
+        refresh_token: parsed.refreshToken,
+      });
+      if (error) return;
+      if (parsed.kind === 'recovery') setIsPasswordRecovery(true);
+    }
+
+    Linking.getInitialURL().then(consume);
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      void consume(url);
+    });
+    return () => subscription.remove();
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       isAuthenticated: user !== null,
       isInitializing,
+      isPasswordRecovery,
       user,
       isSubmitting,
       async login(email: string, password: string) {
@@ -71,12 +109,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async signup(name: string, email: string, password: string) {
         setIsSubmitting(true);
         try {
-          const { error } = await supabase.auth.signUp({
+          const { data, error } = await supabase.auth.signUp({
             email,
             password,
-            options: { data: { name } },
+            options: { data: { name }, emailRedirectTo: Linking.createURL('verify-email') },
           });
           if (error) throw error;
+          await markOnboardingPending(email);
+          return { needsEmailConfirmation: !data.session };
+        } finally {
+          setIsSubmitting(false);
+        }
+      },
+      async resendVerificationEmail(email: string) {
+        const { error } = await supabase.auth.resend({
+          type: 'signup',
+          email,
+          options: { emailRedirectTo: Linking.createURL('verify-email') },
+        });
+        if (error) throw error;
+      },
+      async requestPasswordReset(email: string) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: Linking.createURL('reset-password'),
+        });
+        if (error) throw error;
+      },
+      async completePasswordReset(newPassword: string) {
+        setIsSubmitting(true);
+        try {
+          const { error } = await supabase.auth.updateUser({ password: newPassword });
+          if (error) throw error;
+          // The recovery session itself is the one that just proved
+          // ownership of the new password -- only force *other* devices
+          // (e.g. one still signed in with the old password) to re-auth.
+          await supabase.auth.signOut({ scope: 'others' });
+          setIsPasswordRecovery(false);
         } finally {
           setIsSubmitting(false);
         }
@@ -118,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [user, isInitializing, isSubmitting],
+    [user, isInitializing, isSubmitting, isPasswordRecovery],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

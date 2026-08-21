@@ -114,7 +114,7 @@ export default function EditHoldingScreen() {
       </View>
 
       <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <AvatarBadge label={holding.symbol} color={holding.stock.color} size={48} />
+        <AvatarBadge label={holding.symbol} color={holding.stock.color} size={48} symbol={holding.symbol} />
         <View style={styles.summaryInfo}>
           <Text style={[styles.symbol, { color: theme.text }]}>{holding.symbol}</Text>
           <Text style={[styles.company, { color: theme.textSecondary }]} numberOfLines={1}>

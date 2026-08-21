@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Radii, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -9,6 +10,8 @@ import { formatRelativeDate } from '@/utils/format';
 
 export function NewsCard({ article }: { article: NewsArticle }) {
   const theme = useTheme();
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = article.imageUrl && !imageFailed;
 
   const openArticle = () => {
     if (Platform.OS === 'web') {
@@ -26,9 +29,18 @@ export function NewsCard({ article }: { article: NewsArticle }) {
         { backgroundColor: theme.card, borderColor: theme.border },
         pressed && { opacity: 0.85 },
       ]}>
-      <View style={[styles.thumbnail, { backgroundColor: theme.tintSoft }]}>
-        <Ionicons name="newspaper-outline" size={22} color={theme.tint} />
-      </View>
+      {showImage ? (
+        <Image
+          source={{ uri: article.imageUrl }}
+          style={styles.thumbnail}
+          resizeMode="cover"
+          onError={() => setImageFailed(true)}
+        />
+      ) : (
+        <View style={[styles.thumbnail, styles.thumbnailFallback, { backgroundColor: theme.tintSoft }]}>
+          <Ionicons name="newspaper-outline" size={22} color={theme.tint} />
+        </View>
+      )}
       <View style={styles.body}>
         <Text style={[styles.headline, { color: theme.text }]} numberOfLines={2}>
           {article.headline}
@@ -66,6 +78,8 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: Radii.medium,
+  },
+  thumbnailFallback: {
     alignItems: 'center',
     justifyContent: 'center',
   },

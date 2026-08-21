@@ -18,6 +18,7 @@ import { useStocks } from '@/hooks/use-stocks';
 import { useTheme } from '@/hooks/use-theme';
 import { PerformanceRange } from '@/types';
 import {
+  formatChartPointLabel,
   formatFloat,
   formatPercent,
   formatShares,
@@ -83,7 +84,7 @@ export default function StockDetailScreen() {
       </View>
 
       <View style={styles.identityRow}>
-        <AvatarBadge label={stock.symbol} color={stock.color} size={52} />
+        <AvatarBadge label={stock.symbol} color={stock.color} size={52} symbol={stock.symbol} />
         <View style={styles.identityInfo}>
           <Text style={[styles.company, { color: theme.text }]} numberOfLines={2}>
             {stock.companyName}
@@ -127,7 +128,10 @@ export default function StockDetailScreen() {
           points={points}
           color={color}
           formatValue={formatCurrency}
-          labelColor={theme.textSecondary}
+          formatPointLabel={(point) => formatChartPointLabel(point.date, range)}
+          labelColor={theme.text}
+          tooltipBackground={theme.card}
+          tooltipBorder={theme.border}
         />
         <View style={styles.rangeRow}>
           <SegmentedControl options={RANGES} value={range} onChange={setRange} />

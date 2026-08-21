@@ -22,7 +22,7 @@ export function HoldingRow({ holding, onPress }: HoldingRowProps) {
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}>
-      <AvatarBadge label={holding.symbol} color={holding.stock.color} />
+      <AvatarBadge label={holding.symbol} color={holding.stock.color} symbol={holding.symbol} />
       <View style={styles.info}>
         <Text style={[styles.symbol, { color: theme.text }]}>{holding.symbol}</Text>
         <Text style={[styles.shares, { color: theme.textSecondary }]}>

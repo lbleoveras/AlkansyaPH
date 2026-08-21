@@ -51,6 +51,14 @@ export function formatDate(isoDate: string): string {
   });
 }
 
+export function formatChartPointLabel(isoDate: string, range: '1D' | '1W' | '1M' | '3M' | '1Y'): string {
+  const date = new Date(isoDate);
+  if (range === '1D') {
+    return date.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila' });
+  }
+  return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: '2-digit' });
+}
+
 export function formatRelativeDate(iso: string): string {
   const date = new Date(iso);
   const now = new Date();

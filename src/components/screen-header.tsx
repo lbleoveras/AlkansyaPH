@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AvatarBadge } from '@/components/ui/avatar-badge';
@@ -8,6 +8,7 @@ import { Radii, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { usePortfolio } from '@/context/portfolio-context';
 import { useTheme } from '@/hooks/use-theme';
+import { getSeenNotificationsSignature, markNotificationsSeen } from '@/lib/notification-memory';
 import { formatSignedPercent } from '@/utils/format';
 
 export function ScreenHeader({ title }: { title: string }) {
@@ -16,6 +17,7 @@ export function ScreenHeader({ title }: { title: string }) {
   const { user } = useAuth();
   const { holdingsWithMarketData } = usePortfolio();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [seenSignature, setSeenSignature] = useState<string | null>(null);
 
   const notifications = useMemo(
     () =>
@@ -31,6 +33,26 @@ export function ScreenHeader({ title }: { title: string }) {
     [holdingsWithMarketData],
   );
 
+  // Identifies *this exact set* of notifications so the badge reappears if
+  // tomorrow's moves are different, but stays cleared for ones already seen.
+  const signature = useMemo(
+    () => notifications.map((note) => `${note.id}:${note.text}`).join('|'),
+    [notifications],
+  );
+
+  useEffect(() => {
+    if (!user) return;
+    getSeenNotificationsSignature(user.id).then(setSeenSignature);
+  }, [user]);
+
+  const hasUnseen = notifications.length > 0 && signature !== seenSignature;
+
+  const handleOpenNotifications = () => {
+    setShowNotifications(true);
+    setSeenSignature(signature);
+    if (user) void markNotificationsSeen(user.id, signature);
+  };
+
   return (
     <View style={styles.row}>
       <Pressable
@@ -43,12 +65,12 @@ export function ScreenHeader({ title }: { title: string }) {
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
 
       <Pressable
-        onPress={() => setShowNotifications(true)}
+        onPress={handleOpenNotifications}
         hitSlop={8}
         accessibilityLabel="Notifications"
         style={[styles.bellButton, { backgroundColor: theme.backgroundElement }]}>
         <Ionicons name="notifications-outline" size={20} color={theme.text} />
-        {notifications.length > 0 && (
+        {hasUnseen && (
           <View style={[styles.dot, { backgroundColor: theme.negative, borderColor: theme.card }]} />
         )}
       </Pressable>

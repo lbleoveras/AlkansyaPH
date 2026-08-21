@@ -20,7 +20,7 @@ export function StockRow({ stock, onPress }: StockRowProps) {
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}>
-      <AvatarBadge label={stock.symbol} color={stock.color} />
+      <AvatarBadge label={stock.symbol} color={stock.color} symbol={stock.symbol} />
       <View style={styles.info}>
         <Text style={[styles.symbol, { color: theme.text }]}>{stock.symbol}</Text>
         <Text style={[styles.company, { color: theme.textSecondary }]} numberOfLines={1}>

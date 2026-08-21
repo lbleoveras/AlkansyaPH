@@ -26,6 +26,7 @@ export default function EditHoldingScreen() {
   const { formatCurrency, formatSignedCurrency } = useMoneyFormat();
 
   const holding = holdingsWithMarketData.find((item) => item.id === id);
+  const [isEditing, setIsEditing] = useState(false);
   const [quantityInput, setQuantityInput] = useState(String(holding?.quantity ?? 0));
   const [error, setError] = useState('');
 
@@ -87,6 +88,18 @@ export default function EditHoldingScreen() {
     router.back();
   };
 
+  const handleStartEditing = () => {
+    setQuantityInput(String(holding.quantity));
+    setError('');
+    setIsEditing(true);
+  };
+
+  const handleCancelEditing = () => {
+    setQuantityInput(String(holding.quantity));
+    setError('');
+    setIsEditing(false);
+  };
+
   return (
     <ScreenContainer>
       <View style={styles.header}>
@@ -143,38 +156,47 @@ export default function EditHoldingScreen() {
       />
 
       <View style={styles.form}>
-        <Text style={[styles.formTitle, { color: theme.text }]}>Adjust Shares</Text>
-        <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>
-          Currently {formatShares(holding.quantity)}
-        </Text>
-        <TextField
-          label="Number of shares"
-          value={quantityInput}
-          onChangeText={setQuantityInput}
-          keyboardType="numeric"
-          error={error || undefined}
-        />
+        {isEditing ? (
+          <>
+            <Text style={[styles.formTitle, { color: theme.text }]}>Adjust Shares</Text>
+            <Text style={[styles.formSubtitle, { color: theme.textSecondary }]}>
+              Currently {formatShares(holding.quantity)}
+            </Text>
+            <TextField
+              label="Number of shares"
+              value={quantityInput}
+              onChangeText={setQuantityInput}
+              keyboardType="numeric"
+              error={error || undefined}
+            />
 
-        <View style={styles.chipRow}>
-          {QUICK_ADJUSTMENTS.map((delta) => (
-            <Pressable
-              key={delta}
-              onPress={() => applyDelta(delta)}
-              style={[styles.chip, { backgroundColor: theme.backgroundElement }]}>
-              <Text style={[styles.chipLabel, { color: theme.text }]}>
-                {delta > 0 ? `+${delta}` : delta}
+            <View style={styles.chipRow}>
+              {QUICK_ADJUSTMENTS.map((delta) => (
+                <Pressable
+                  key={delta}
+                  onPress={() => applyDelta(delta)}
+                  style={[styles.chip, { backgroundColor: theme.backgroundElement }]}>
+                  <Text style={[styles.chipLabel, { color: theme.text }]}>
+                    {delta > 0 ? `+${delta}` : delta}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={[styles.summaryRow, { borderColor: theme.border }]}>
+              <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>New value</Text>
+              <Text style={[styles.summaryValue, { color: theme.text }]}>
+                {formatCurrency(projectedValue)}
               </Text>
-            </Pressable>
-          ))}
-        </View>
+            </View>
 
-        <View style={[styles.summaryRow, { borderColor: theme.border }]}>
-          <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>New value</Text>
-          <Text style={[styles.summaryValue, { color: theme.text }]}>{formatCurrency(projectedValue)}</Text>
-        </View>
-
-        <PrimaryButton label="Save Changes" onPress={handleSave} />
-        <PrimaryButton label="Remove Holding" variant="danger" onPress={handleRemove} />
+            <PrimaryButton label="Save Changes" onPress={handleSave} />
+            <PrimaryButton label="Cancel" variant="outline" onPress={handleCancelEditing} />
+            <PrimaryButton label="Remove Holding" variant="danger" onPress={handleRemove} />
+          </>
+        ) : (
+          <PrimaryButton label="Edit Holding" onPress={handleStartEditing} />
+        )}
       </View>
     </ScreenContainer>
   );

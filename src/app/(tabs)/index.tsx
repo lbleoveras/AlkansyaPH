@@ -36,16 +36,18 @@ export default function PortfolioScreen() {
         gainPercent={totalGainPercent}
       />
 
+      <PrimaryButton
+        label="+ Add Holding"
+        onPress={() => router.push('/add-holding')}
+        style={styles.topAddButton}
+      />
+
       <View style={styles.section}>
         <PerformanceCard holdings={holdingsWithMarketData} />
       </View>
 
       <View style={styles.section}>
-        <SectionHeader
-          title="Holdings"
-          actionLabel="Add"
-          onActionPress={() => router.push('/add-holding')}
-        />
+        <SectionHeader title="Holdings" />
 
         {holdingsWithMarketData.length === 0 ? (
           <View style={[styles.emptyState, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -86,6 +88,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: Spacing.one,
+  },
+  topAddButton: {
+    marginTop: Spacing.three,
   },
   section: {
     marginTop: Spacing.four,

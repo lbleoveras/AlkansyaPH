@@ -5,14 +5,16 @@ import { ScreenHeader } from '@/components/screen-header';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { Spacing } from '@/constants/theme';
 import { useNews } from '@/hooks/use-news';
+import { useRefreshAll } from '@/hooks/use-refresh-all';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function NewsScreen() {
   const theme = useTheme();
   const { articles, isLoading } = useNews();
+  const { refreshing, onRefresh } = useRefreshAll();
 
   return (
-    <ScreenContainer>
+    <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
       <ScreenHeader title="News" />
 
       {articles.length === 0 ? (

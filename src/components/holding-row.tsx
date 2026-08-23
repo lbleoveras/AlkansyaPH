@@ -5,6 +5,7 @@ import { ChangePill } from '@/components/ui/change-pill';
 import { AvatarBadge } from '@/components/ui/avatar-badge';
 import { Spacing } from '@/constants/theme';
 import { HoldingWithMarketData } from '@/context/portfolio-context';
+import { usePrivacy } from '@/context/privacy-context';
 import { useMoneyFormat } from '@/hooks/use-money-format';
 import { useTheme } from '@/hooks/use-theme';
 import { formatShares } from '@/utils/format';
@@ -14,9 +15,12 @@ type HoldingRowProps = {
   onPress: () => void;
 };
 
+const MASK = '••••••';
+
 export function HoldingRow({ holding, onPress }: HoldingRowProps) {
   const theme = useTheme();
   const { formatCurrency } = useMoneyFormat();
+  const { hideNumbers } = usePrivacy();
 
   return (
     <Pressable
@@ -30,7 +34,9 @@ export function HoldingRow({ holding, onPress }: HoldingRowProps) {
         </Text>
       </View>
       <View style={styles.values}>
-        <Text style={[styles.value, { color: theme.text }]}>{formatCurrency(holding.currentValue)}</Text>
+        <Text style={[styles.value, { color: theme.text }]}>
+          {hideNumbers ? MASK : formatCurrency(holding.currentValue)}
+        </Text>
         <ChangePill percent={holding.gainPercent} />
       </View>
       <Ionicons name="chevron-forward" size={16} color={theme.iconMuted} />

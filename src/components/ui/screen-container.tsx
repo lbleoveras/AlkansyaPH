@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Platform, ScrollView, StyleSheet, View, type ScrollViewProps } from 'react-native';
+import { Platform, RefreshControl, ScrollView, StyleSheet, View, type ScrollViewProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -9,12 +9,17 @@ type ScreenContainerProps = {
   children: ReactNode;
   scrollable?: boolean;
   contentContainerStyle?: ScrollViewProps['contentContainerStyle'];
+  /** When provided, adds pull-to-refresh to the screen's scroll view. */
+  refreshing?: boolean;
+  onRefresh?: () => void;
 };
 
 export function ScreenContainer({
   children,
   scrollable = true,
   contentContainerStyle,
+  refreshing,
+  onRefresh,
 }: ScreenContainerProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -38,7 +43,12 @@ export function ScreenContainer({
     <ScrollView
       style={[styles.flex, { backgroundColor: theme.background }]}
       contentContainerStyle={[styles.contentContainer, { paddingTop, paddingBottom }, contentContainerStyle]}
-      showsVerticalScrollIndicator={false}>
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl refreshing={refreshing ?? false} onRefresh={onRefresh} tintColor={theme.tint} />
+        ) : undefined
+      }>
       <View style={styles.inner}>{children}</View>
     </ScrollView>
   );

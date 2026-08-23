@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { ScreenHeader } from '@/components/screen-header';
 import { AvatarBadge } from '@/components/ui/avatar-badge';
@@ -10,6 +10,7 @@ import { ScreenContainer } from '@/components/ui/screen-container';
 import { SectionHeader } from '@/components/ui/section-header';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Radii, Spacing } from '@/constants/theme';
+import { useAppLock } from '@/context/app-lock-context';
 import { useAuth } from '@/context/auth-context';
 import { CurrencyCode, useCurrencyPreference } from '@/context/currency-context';
 import { ThemePreference, useThemePreference } from '@/context/theme-preference-context';
@@ -40,6 +41,7 @@ export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const { preference, setPreference } = useThemePreference();
   const { currency, setCurrency } = useCurrencyPreference();
+  const { enabled: lockEnabled, isAvailable: lockAvailable, setEnabled: setLockEnabled } = useAppLock();
 
   const memberSince = user?.createdAt ? formatDate(user.createdAt) : '—';
 
@@ -81,6 +83,31 @@ export default function SettingsScreen() {
             <Text style={[styles.infoLabel, { color: theme.negative }]}>Delete Account</Text>
             <Ionicons name="chevron-forward" size={16} color={theme.iconMuted} />
           </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <SectionHeader title="Security" />
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.toggleRow}>
+            <View style={[styles.infoIcon, { backgroundColor: theme.backgroundElement }]}>
+              <Ionicons name="finger-print-outline" size={16} color={theme.textSecondary} />
+            </View>
+            <View style={styles.toggleTextGroup}>
+              <Text style={[styles.infoLabel, { color: theme.text }]}>App Lock</Text>
+              <Text style={[styles.toggleSubtext, { color: theme.textSecondary }]}>
+                {lockAvailable
+                  ? 'Require your fingerprint, face, or device passcode to open the app.'
+                  : 'Unavailable -- set up a fingerprint, face, or passcode lock on your device first.'}
+              </Text>
+            </View>
+            <Switch
+              value={lockEnabled}
+              onValueChange={(next) => void setLockEnabled(next)}
+              disabled={!lockAvailable}
+              trackColor={{ false: theme.border, true: theme.tint }}
+            />
+          </View>
         </View>
       </View>
 
@@ -147,6 +174,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
     paddingVertical: Spacing.two - 2,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  toggleTextGroup: {
+    flex: 1,
+    gap: 2,
+  },
+  toggleSubtext: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   preferenceSpacing: {
     marginTop: Spacing.three,

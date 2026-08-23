@@ -39,6 +39,12 @@
           "icon": "./assets/images/android-icon-foreground.png",
           "color": "#208AEF"
         }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow AlkansyaPH to use Face ID to unlock the app."
+        }
       ]
     ],
     "experiments": {

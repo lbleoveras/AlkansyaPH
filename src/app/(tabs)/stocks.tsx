@@ -7,13 +7,16 @@ import { StockRow } from '@/components/stock-row';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { SearchBar } from '@/components/ui/search-bar';
 import { Radii, Spacing } from '@/constants/theme';
+import { useRefreshAll } from '@/hooks/use-refresh-all';
 import { useStocks } from '@/hooks/use-stocks';
 import { useTheme } from '@/hooks/use-theme';
+import { formatTimeOfDay } from '@/utils/format';
 
 export default function StocksScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { stocks, isLoading } = useStocks();
+  const { refreshing, onRefresh } = useRefreshAll();
   const [query, setQuery] = useState('');
 
   const filteredStocks = useMemo(() => {
@@ -25,17 +28,31 @@ export default function StocksScreen() {
     );
   }, [query, stocks]);
 
+  const lastUpdated = useMemo(() => {
+    if (stocks.length === 0) return null;
+    const latest = stocks.reduce(
+      (max, stock) => (stock.updatedAt > max ? stock.updatedAt : max),
+      stocks[0].updatedAt,
+    );
+    return formatTimeOfDay(latest);
+  }, [stocks]);
+
   return (
-    <ScreenContainer>
+    <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
       <ScreenHeader title="Stocks" />
 
       <View style={styles.searchWrap}>
         <SearchBar value={query} onChangeText={setQuery} placeholder="Search PSE stocks" />
       </View>
 
-      <Text style={[styles.count, { color: theme.textSecondary }]}>
-        {filteredStocks.length} PSE-listed {filteredStocks.length === 1 ? 'stock' : 'stocks'}
-      </Text>
+      <View style={styles.metaRow}>
+        <Text style={[styles.count, { color: theme.textSecondary }]}>
+          {filteredStocks.length} PSE-listed {filteredStocks.length === 1 ? 'stock' : 'stocks'}
+        </Text>
+        {lastUpdated && (
+          <Text style={[styles.count, { color: theme.textSecondary }]}>Updated at {lastUpdated}</Text>
+        )}
+      </View>
 
       {filteredStocks.length === 0 ? (
         <Text style={[styles.empty, { color: theme.textSecondary }]}>
@@ -60,10 +77,14 @@ const styles = StyleSheet.create({
   searchWrap: {
     marginBottom: Spacing.two,
   },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.two,
+  },
   count: {
     fontSize: 12,
     fontWeight: '600',
-    marginBottom: Spacing.two,
   },
   empty: {
     fontSize: 14,

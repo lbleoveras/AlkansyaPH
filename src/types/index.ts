@@ -10,6 +10,7 @@ export type Stock = {
   marketCapBillion: number;
   indexWeightPercent: number;
   idxPointChange: number;
+  updatedAt: string;
 };
 
 export type Holding = {

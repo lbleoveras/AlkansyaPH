@@ -7,6 +7,7 @@ import { MarketStatusBadge } from '@/components/ui/market-status-badge';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Radii, Spacing } from '@/constants/theme';
 import { HoldingWithMarketData } from '@/context/portfolio-context';
+import { usePrivacy } from '@/context/privacy-context';
 import { useMoneyFormat } from '@/hooks/use-money-format';
 import { usePortfolioHistory } from '@/hooks/use-portfolio-history';
 import { useTheme } from '@/hooks/use-theme';
@@ -14,10 +15,12 @@ import { PerformanceRange } from '@/types';
 import { formatChartPointLabel, formatSignedPercent } from '@/utils/format';
 
 const RANGES: PerformanceRange[] = ['1D', '1W', '1M', '3M', '1Y'];
+const MASK = '••••••';
 
 export function PerformanceCard({ holdings }: { holdings: HoldingWithMarketData[] }) {
   const theme = useTheme();
   const { formatSignedCurrency } = useMoneyFormat();
+  const { hideNumbers } = usePrivacy();
   const { range, setRange, points, changeAmount, changePercent, isPositive } =
     usePortfolioHistory(holdings);
 
@@ -43,7 +46,9 @@ export function PerformanceCard({ holdings }: { holdings: HoldingWithMarketData[
       </View>
 
       <View style={styles.statRow}>
-        <Text style={[styles.changeAmount, { color }]}>{formatSignedCurrency(changeAmount)}</Text>
+        <Text style={[styles.changeAmount, { color }]}>
+          {hideNumbers ? MASK : formatSignedCurrency(changeAmount)}
+        </Text>
         <Text style={[styles.changePercent, { color }]}>{formatSignedPercent(changePercent)}</Text>
       </View>
 
@@ -54,7 +59,7 @@ export function PerformanceCard({ holdings }: { holdings: HoldingWithMarketData[
       <PerformanceGraph
         points={points}
         color={color}
-        formatValue={formatSignedCurrency}
+        formatValue={hideNumbers ? undefined : formatSignedCurrency}
         formatPointLabel={(point) => formatChartPointLabel(point.date, range)}
         labelColor={theme.text}
         tooltipBackground={theme.card}

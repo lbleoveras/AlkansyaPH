@@ -51,6 +51,14 @@ export function formatDate(isoDate: string): string {
   });
 }
 
+export function formatTimeOfDay(isoDate: string): string {
+  return new Date(isoDate).toLocaleTimeString('en-PH', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'Asia/Manila',
+  });
+}
+
 export function formatChartPointLabel(isoDate: string, range: '1D' | '1W' | '1M' | '3M' | '1Y'): string {
   const date = new Date(isoDate);
   if (range === '1D') {

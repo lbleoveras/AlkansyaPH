@@ -3,11 +3,14 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
+import { AppLockScreen } from '@/components/app-lock-screen';
+import { AppLockProvider, useAppLock } from '@/context/app-lock-context';
 import { AuthProvider, useAuth } from '@/context/auth-context';
 import { CurrencyProvider } from '@/context/currency-context';
 import { NotificationsProvider } from '@/context/notifications-context';
 import { OnboardingProvider, useOnboarding } from '@/context/onboarding-context';
 import { PortfolioProvider } from '@/context/portfolio-context';
+import { PrivacyProvider } from '@/context/privacy-context';
 import { ThemePreferenceProvider } from '@/context/theme-preference-context';
 import { registerForPushNotifications } from '@/lib/notifications';
 import { queryClient } from '@/lib/query-client';
@@ -18,12 +21,13 @@ SplashScreen.preventAutoHideAsync();
 function RootNavigator() {
   const { isAuthenticated, isInitializing, isPasswordRecovery, user } = useAuth();
   const { needsOnboarding } = useOnboarding();
+  const { isLoadingPreference: isLoadingLockPreference, enabled: lockEnabled, isLocked } = useAppLock();
 
   useEffect(() => {
-    if (!isInitializing) {
+    if (!isInitializing && !isLoadingLockPreference) {
       SplashScreen.hideAsync();
     }
-  }, [isInitializing]);
+  }, [isInitializing, isLoadingLockPreference]);
 
   useEffect(() => {
     if (user) {
@@ -31,13 +35,20 @@ function RootNavigator() {
     }
   }, [user]);
 
-  if (isInitializing) {
+  if (isInitializing || isLoadingLockPreference) {
     return null;
   }
 
   const isRecovering = isAuthenticated && isPasswordRecovery;
   const isOnboarding = isAuthenticated && !isPasswordRecovery && needsOnboarding;
   const isMainApp = isAuthenticated && !isPasswordRecovery && !needsOnboarding;
+
+  // Checked before anything else renders -- fully replaces the navigator
+  // rather than overlaying it, so a locked session can't be bypassed by
+  // reaching an already-mounted screen underneath.
+  if (isMainApp && lockEnabled && isLocked) {
+    return <AppLockScreen />;
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -77,13 +88,17 @@ export default function RootLayout() {
       <ThemePreferenceProvider>
         <CurrencyProvider>
           <AuthProvider>
-            <OnboardingProvider>
-              <PortfolioProvider>
-                <NotificationsProvider>
-                  <RootNavigator />
-                </NotificationsProvider>
-              </PortfolioProvider>
-            </OnboardingProvider>
+            <AppLockProvider>
+              <OnboardingProvider>
+                <PortfolioProvider>
+                  <NotificationsProvider>
+                    <PrivacyProvider>
+                      <RootNavigator />
+                    </PrivacyProvider>
+                  </NotificationsProvider>
+                </PortfolioProvider>
+              </OnboardingProvider>
+            </AppLockProvider>
           </AuthProvider>
         </CurrencyProvider>
       </ThemePreferenceProvider>

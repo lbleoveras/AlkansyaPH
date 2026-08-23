@@ -27,6 +27,7 @@ type StockRow = {
   float_million: number | string | null;
   market_cap_billion: number | string | null;
   index_weight_percent: number | string | null;
+  updated_at: string;
 };
 
 function mapRowToStock(row: StockRow, index: number): Stock {
@@ -46,6 +47,7 @@ function mapRowToStock(row: StockRow, index: number): Stock {
     marketCapBillion: Number(row.market_cap_billion ?? 0),
     indexWeightPercent,
     idxPointChange,
+    updatedAt: row.updated_at,
   };
 }
 

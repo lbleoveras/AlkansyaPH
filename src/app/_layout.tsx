@@ -12,6 +12,7 @@ import { OnboardingProvider, useOnboarding } from '@/context/onboarding-context'
 import { PortfolioProvider } from '@/context/portfolio-context';
 import { PrivacyProvider } from '@/context/privacy-context';
 import { ThemePreferenceProvider } from '@/context/theme-preference-context';
+import { WhatsNewProvider, useWhatsNew } from '@/context/whats-new-context';
 import { registerForPushNotifications } from '@/lib/notifications';
 import { queryClient } from '@/lib/query-client';
 import { asyncStoragePersister } from '@/lib/query-persister';
@@ -21,6 +22,7 @@ SplashScreen.preventAutoHideAsync();
 function RootNavigator() {
   const { isAuthenticated, isInitializing, isPasswordRecovery, user } = useAuth();
   const { needsOnboarding } = useOnboarding();
+  const { needsWhatsNew } = useWhatsNew();
   const { isLoadingPreference: isLoadingLockPreference, enabled: lockEnabled, isLocked } = useAppLock();
 
   useEffect(() => {
@@ -41,12 +43,16 @@ function RootNavigator() {
 
   const isRecovering = isAuthenticated && isPasswordRecovery;
   const isOnboarding = isAuthenticated && !isPasswordRecovery && needsOnboarding;
-  const isMainApp = isAuthenticated && !isPasswordRecovery && !needsOnboarding;
+  // Only reachable for an existing account opening an upgraded build -- a
+  // fresh signup goes through the onboarding carousel above instead, never
+  // this one, since it has no prior version to be "new" relative to.
+  const isWhatsNew = isAuthenticated && !isPasswordRecovery && !needsOnboarding && needsWhatsNew;
+  const isMainApp = isAuthenticated && !isPasswordRecovery && !needsOnboarding && !needsWhatsNew;
 
   // Checked before anything else renders -- fully replaces the navigator
   // rather than overlaying it, so a locked session can't be bypassed by
   // reaching an already-mounted screen underneath.
-  if (isMainApp && lockEnabled && isLocked) {
+  if ((isMainApp || isWhatsNew) && lockEnabled && isLocked) {
     return <AppLockScreen />;
   }
 
@@ -60,6 +66,9 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={isOnboarding}>
         <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={isWhatsNew}>
+        <Stack.Screen name="whats-new" options={{ gestureEnabled: false }} />
       </Stack.Protected>
       <Stack.Protected guard={isMainApp}>
         <Stack.Screen name="(tabs)" />
@@ -90,13 +99,15 @@ export default function RootLayout() {
           <AuthProvider>
             <AppLockProvider>
               <OnboardingProvider>
-                <PortfolioProvider>
-                  <NotificationsProvider>
-                    <PrivacyProvider>
-                      <RootNavigator />
-                    </PrivacyProvider>
-                  </NotificationsProvider>
-                </PortfolioProvider>
+                <WhatsNewProvider>
+                  <PortfolioProvider>
+                    <NotificationsProvider>
+                      <PrivacyProvider>
+                        <RootNavigator />
+                      </PrivacyProvider>
+                    </NotificationsProvider>
+                  </PortfolioProvider>
+                </WhatsNewProvider>
               </OnboardingProvider>
             </AppLockProvider>
           </AuthProvider>

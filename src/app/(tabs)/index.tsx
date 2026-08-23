@@ -7,6 +7,7 @@ import { HoldingRow } from '@/components/holding-row';
 import { PerformanceCard } from '@/components/performance-card';
 import { PortfolioHero } from '@/components/portfolio-hero';
 import { ScreenHeader } from '@/components/screen-header';
+import { UpdateBanner } from '@/components/update-banner';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -38,6 +39,8 @@ export default function PortfolioScreen() {
   return (
     <ScreenContainer refreshing={refreshing} onRefresh={onRefresh}>
       <ScreenHeader title="Portfolio" />
+
+      <UpdateBanner />
 
       {firstName && (
         <Text style={[styles.greeting, { color: theme.textSecondary }]}>Welcome back, {firstName}</Text>
